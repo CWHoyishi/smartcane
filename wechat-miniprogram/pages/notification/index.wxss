@@ -1,0 +1,111 @@
+/* 消息通知页面 */
+.container { padding: 32rpx; min-height: 100vh; box-sizing: border-box; }
+
+/* Tab切换 */
+.tab-bar { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
+.tab {
+  flex: 1; text-align: center; padding: 14rpx 0;
+  border-radius: 48rpx; font-size: 26rpx;
+  background-color: #FFFFFF; color: #4E5969;
+}
+.tab.active { background-color: #4E6EF2; color: #FFFFFF; font-weight: 500; }
+
+/* 通知列表 */
+.list { display: flex; flex-direction: column; gap: 20rpx; }
+.item {
+  background-color: #FFFFFF;
+  border-radius: 12rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.08);
+  position: relative;
+  border-left: 8rpx solid transparent;
+}
+.item.unread { border-left-color: #FF6B6B; background-color: rgba(255,107,107,0.02); }
+.item.fall-type { border-left-color: #FF6B6B; }
+.item.geo-type { border-left-color: #FF7D00; }
+
+.item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; }
+.type-tag {
+  font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 6rpx; font-weight: 500;
+}
+.type-fall { background-color: rgba(255,107,107,0.1); color: #FF6B6B; }
+.type-geo { background-color: rgba(255,125,0,0.1); color: #FF7D00; }
+.item-time { font-size: 22rpx; color: #86909C; }
+
+.item-message { font-size: 28rpx; color: #1D2129; line-height: 1.8; display: block; margin-bottom: 12rpx; }
+
+.device-info { display: flex; align-items: center; gap: 20rpx; }
+.device-sn { font-size: 22rpx; color: #86909C; }
+.elder-name { font-size: 22rpx; color: #4E6EF2; }
+
+.unread-dot {
+  width: 16rpx; height: 16rpx; border-radius: 50%;
+  background-color: #FF6B6B; position: absolute;
+  top: 28rpx; right: 28rpx;
+}
+
+.empty-tip { text-align: center; padding: 120rpx 0; color: #86909C; font-size: 28rpx; }
+.loading-tip { text-align: center; padding: 120rpx 0; color: #4E6EF2; font-size: 28rpx; }
+.error-tip { text-align: center; padding: 80rpx 40rpx; color: #FF6B6B; font-size: 26rpx; background-color: rgba(255,107,107,0.05); border-radius: 12rpx; margin-top: 24rpx; }
+
+/* ====== 详情弹窗 ====== */
+.mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.5); z-index: 99;
+}
+.detail-popup {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background-color: #FFFFFF;
+  border-radius: 32rpx 32rpx 0 0;
+  z-index: 100;
+  max-height: 80vh;
+  transform: translateY(100%);
+  transition: transform 0.25s ease-out;
+  overflow-y: auto;
+}
+.detail-popup.show { transform: translateY(0); }
+
+.popup-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 32rpx 32rpx 20rpx;
+  position: sticky; top: 0; background-color: #FFFFFF; z-index: 1;
+}
+.popup-title { font-size: 34rpx; font-weight: 600; color: #1D2129; }
+.close-btn {
+  width: 56rpx; height: 56rpx; line-height: 56rpx; text-align: center;
+  font-size: 36rpx; color: #86909C; border-radius: 50%;
+}
+
+.popup-body { padding: 0 32rpx 24rpx; }
+.info-row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; }
+.info-label { font-size: 26rpx; color: #86909C; }
+.info-value { font-size: 28rpx; color: #1D2129; font-weight: 500; }
+
+.divider { height: 1rpx; background-color: #F0F0F0; margin: 20rpx 0; }
+.section-subtitle { font-size: 28rpx; font-weight: 600; color: #1D2129; display: block; margin-bottom: 20rpx; }
+
+/* 弹窗内传感器网格 */
+.sensor-grid { display: flex; flex-wrap: wrap; gap: 16rpx; margin-bottom: 8rpx; }
+.sensor-item {
+  width: calc(50% - 8rpx); background-color: #F5F7FA;
+  border-radius: 12rpx; padding: 20rpx; text-align: center;
+}
+.s-label { font-size: 22rpx; color: #86909C; display: block; margin-bottom: 8rpx; }
+.s-value { font-size: 30rpx; font-weight: 600; color: #1D2129; }
+
+/* 弹窗底部按钮 */
+.popup-footer { padding: 20rpx 32rpx 40rpx; display: flex; gap: 20rpx; }
+.btn-location {
+  flex: 1; height: 88rpx; line-height: 88rpx; text-align: center;
+  background: linear-gradient(135deg, #4E6EF2, #7B93FA);
+  color: #FFFFFF; border-radius: 48rpx; font-size: 30rpx; font-weight: 500;
+  border: none; margin: 0;
+}
+.btn-location::after { border: none; }
+.btn-close {
+  flex: 1; height: 88rpx; line-height: 88rpx; text-align: center;
+  background-color: #F2F3F5; color: #4E5969;
+  border-radius: 48rpx; font-size: 30rpx; font-weight: 500;
+  border: none; margin: 0;
+}
+.btn-close::after { border: none; }

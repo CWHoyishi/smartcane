@@ -1,0 +1,28 @@
+{
+  "pages": [
+    "pages/monitor/index",
+    "pages/history/index",
+    "pages/notification/index",
+    "pages/device/index"
+  ],
+  "tabBar": {
+    "color": "#86909C",
+    "selectedColor": "#4E6EF2",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/monitor/index", "text": "实时监测" },
+      { "pagePath": "pages/history/index", "text": "历史数据" },
+      { "pagePath": "pages/notification/index", "text": "消息通知" },
+      { "pagePath": "pages/device/index", "text": "设备管理" }
+    ]
+  },
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#4E6EF2",
+    "navigationBarTitleText": "智能拐杖",
+    "navigationBarTextStyle": "white"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

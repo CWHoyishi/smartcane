@@ -1,0 +1,95 @@
+<!-- 消息通知页面 -->
+<view class="container">
+  <!-- 加载中 -->
+  <view class="loading-tip" wx:if="{{loading}}">
+    <text>正在加载告警记录...</text>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-tip" wx:if="{{errorMsg && !loading}}">
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- 通知列表 -->
+  <view class="list" wx:if="{{filteredList.length > 0 && !loading}}">
+    <view
+      class="item fall-type"
+      wx:for="{{filteredList}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onViewDetail"
+    >
+      <view class="item-header">
+        <view class="type-tag type-fall">摔倒告警</view>
+        <text class="item-time">{{item.createTime}}</text>
+      </view>
+      <text class="item-message">{{item.alarmMessage}}</text>
+      <view class="device-info">
+        <text class="device-sn">设备：{{item.deviceSn}}</text>
+        <text class="elder-name" wx:if="{{item.elderName}}">{{item.elderName}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-tip" wx:if="{{filteredList.length === 0 && !loading && !errorMsg}}">
+    <text>暂无告警通知</text>
+  </view>
+
+  <!-- 详情弹窗 -->
+  <view class="mask" wx:if="{{showDetail}}" bindtap="onCloseDetail"></view>
+  <view class="detail-popup {{showDetail ? 'show' : ''}}" wx:if="{{showDetail}}">
+    <view class="popup-header">
+      <text class="popup-title">摔倒告警详情</text>
+      <text class="close-btn" bindtap="onCloseDetail">✕</text>
+    </view>
+
+    <view class="popup-body">
+      <view class="info-row">
+        <text class="info-label">告警类型</text>
+        <text class="info-value type-tag type-fall">摔倒告警</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">设备</text>
+        <text class="info-value">{{currentDetail.deviceSn}}</text>
+      </view>
+      <view class="info-row" wx:if="{{currentDetail.elderName}}">
+        <text class="info-label">老人</text>
+        <text class="info-value">{{currentDetail.elderName}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">时间</text>
+        <text class="info-value">{{currentDetail.createTime}}</text>
+      </view>
+      <view class="divider"></view>
+
+      <!-- 传感器数据 -->
+      <text class="section-subtitle">告警时传感器数据</text>
+      <view class="sensor-grid" wx:if="{{currentDetail.sensorData}}">
+        <view class="sensor-item">
+          <text class="s-label">心率</text>
+          <text class="s-value" style="color:#FF6B6B">{{currentDetail.sensorData.heartRate || '--'}} 次/分</text>
+        </view>
+        <view class="sensor-item">
+          <text class="s-label">血氧</text>
+          <text class="s-value" style="color:#4E6EF2">{{currentDetail.sensorData.bloodOxygen || '--'}} %</text>
+        </view>
+        <view class="sensor-item">
+          <text class="s-label">纬度</text>
+          <text class="s-value">{{currentDetail.sensorData.lat != null ? currentDetail.sensorData.lat : '--'}}</text>
+        </view>
+        <view class="sensor-item">
+          <text class="s-label">经度</text>
+          <text class="s-value">{{currentDetail.sensorData.lon != null ? currentDetail.sensorData.lon : '--'}}</text>
+        </view>
+      </view>
+
+      <view class="divider"></view>
+      <text class="info-label" style="font-size:26rpx">{{currentDetail.alarmMessage}}</text>
+    </view>
+
+    <view class="popup-footer">
+      <button class="btn-close" bindtap="onCloseDetail">关闭</button>
+    </view>
+  </view>
+</view>

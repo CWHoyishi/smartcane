@@ -1,0 +1,86 @@
+<!-- 实时监测页面 -->
+<view class="container">
+  <!-- 设备选择 -->
+  <view class="device-selector">
+    <view>
+      <text class="device-label">当前设备</text>
+      <view class="device-name">{{currentDeviceSn || '--'}}{{currentDeviceName ? ' (' + currentDeviceName + ')' : ''}}</view>
+    </view>
+    <picker mode="selector" range="{{deviceNames}}" value="{{deviceIndex}}" bindchange="onDeviceChange">
+      <text class="switch-btn">切换</text>
+    </picker>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-tip" wx:if="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+  </view>
+  <view class="refresh-bar">
+    <text class="refresh-text">自动刷新中，{{countdown}}s 后更新</text>
+  </view>
+
+  <!-- 心率/血氧卡片 -->
+  <view class="sensor-grid">
+    <!-- 心率 -->
+    <view class="sensor-card">
+      <view class="card-header">
+        <text class="card-icon">♥</text>
+        <text class="card-title">心率</text>
+      </view>
+      <view class="value-row">
+        <text class="card-value" style="color:#FF6B6B">{{sensorData.heartRate || '--'}}</text>
+        <text class="card-unit">次/分</text>
+      </view>
+    </view>
+
+    <!-- 血氧 -->
+    <view class="sensor-card">
+      <view class="card-header">
+        <text class="card-icon">◎</text>
+        <text class="card-title">血氧饱和度</text>
+      </view>
+      <view class="value-row">
+        <text class="card-value" style="color:#4E6EF2">{{sensorData.bloodOxygen || '--'}}</text>
+        <text class="card-unit">%</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 位置信息 -->
+  <view class="location-card">
+    <view class="location-header">
+      <text class="location-title">位置信息</text>
+      <view class="status-badge {{sensorData.lat != null && sensorData.lon != null ? 'status-normal' : 'status-alert'}}">
+        <text>{{sensorData.lat != null && sensorData.lon != null ? '● 在线' : '○ 暂无定位'}}</text>
+      </view>
+    </view>
+    <!-- 有坐标时展示（lat=0也是有效值，使用!= null同时判断null和undefined） -->
+    <view class="location-coords" wx:if="{{sensorData.lat != null && sensorData.lon != null}}">
+      <view class="coord-item">
+        <text class="coord-label">纬度 Lat</text>
+        <text class="coord-value">{{sensorData.lat}}</text>
+      </view>
+      <view class="coord-item">
+        <text class="coord-label">经度 Lon</text>
+        <text class="coord-value">{{sensorData.lon}}</text>
+      </view>
+    </view>
+    <!-- 无坐标时提示 -->
+    <view class="no-location" wx:else>
+      <text>设备暂未上传GPS定位数据</text>
+    </view>
+  </view>
+
+  <!-- 摔倒状态 -->
+  <view class="status-bar">
+    <view class="status-badge {{sensorData.fallStatus === 1 ? 'status-alert' : 'status-normal'}}">
+      <text>{{sensorData.fallStatus === 1 ? '⚠ 摔倒告警' : '✓ 正常'}}</text>
+    </view>
+    <text class="status-text">倾角检测状态</text>
+  </view>
+
+  <!-- 上报时间 -->
+  <view class="timestamp" wx:if="{{sensorData.reportTime}}">
+    <text>最后上报时间：{{sensorData.reportTime}}</text>
+  </view>
+</view>

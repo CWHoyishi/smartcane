@@ -1,0 +1,58 @@
+<!-- 设备管理页面 -->
+<view class="container">
+  <!-- 统计概览 -->
+  <view class="stats-row">
+    <view class="stat-card">
+      <text class="stat-number" style="color:#4E6EF2">{{devices.length}}</text>
+      <text class="stat-label">总设备</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-number" style="color:#36B37E">{{onlineCount}}</text>
+      <text class="stat-label">在线</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-number" style="color:#86909C">{{offlineCount}}</text>
+      <text class="stat-label">离线</text>
+    </view>
+  </view>
+
+  <!-- 设备列表 -->
+  <text class="section-title">我的设备</text>
+
+  <view class="device-card" wx:for="{{devices}}" wx:key="id">
+    <view class="card-header">
+      <text class="device-sn">{{item.deviceSn}}</text>
+      <view class="status-badge {{item.deviceStatus === 1 ? 'status-normal' : 'status-alert'}}">
+        <text>{{item.deviceStatus === 1 ? '● 在线' : '○ 离线'}}</text>
+      </view>
+    </view>
+    <view class="card-body">
+      <view class="info-item">
+        <text class="info-label">老人姓名</text>
+        <text class="info-value">{{item.elderName || '--'}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">老人电话</text>
+        <text class="info-value">{{item.elderPhone || '--'}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">监护人电话</text>
+        <text class="info-value">{{item.guardianPhone || '--'}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">绑定时间</text>
+        <text class="info-value" style="font-size:24rpx">{{item.createTime ? item.createTime.split(' ')[0] : '--'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-tip" wx:if="{{devices.length === 0}}">
+    <text>暂无绑定设备</text>
+  </view>
+
+  <!-- 绑定新设备按钮 -->
+  <view class="bind-btn" bindtap="onBindDevice">
+    <text>+ 绑定新设备</text>
+  </view>
+</view>

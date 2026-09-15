@@ -1,0 +1,42 @@
+/* 全局样式 - 智能拐杖监护人端 */
+page {
+  background-color: #F5F7FA;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 28rpx;
+  color: #1D2129;
+  line-height: 1.5;
+}
+
+/* 主题色变量通过class使用 */
+.text-primary { color: #4E6EF2; }
+.text-success { color: #36B37E; }
+.text-warning { color: #FF7D00; }
+.text-error { color: #FF6B6B; }
+.text-muted { color: #86909C; }
+
+/* 卡片通用样式 */
+.card {
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+  margin-bottom: 24rpx;
+}
+
+/* 按钮通用样式 */
+.btn-primary {
+  background: linear-gradient(135deg, #4E6EF2 0%, #7B93FA 100%);
+  color: #FFFFFF;
+  border-radius: 48rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: 500;
+}
+
+.btn-primary:active {
+  opacity: 0.9;
+  transform: scale(0.98);
+}

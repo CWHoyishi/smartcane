@@ -1,0 +1,63 @@
+<!-- 历史数据页面 -->
+<view class="container">
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <text class="section-title">传感器记录</text>
+    <picker mode="date" value="{{selectedDate}}" bindchange="onDateChange"
+            start="2020-01-01" end="{{todayDate}}">
+      <view class="date-picker">
+        <text>{{selectedDate || '选择日期'}} ▾</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading-tip" wx:if="{{loading}}">
+    <text>正在加载历史数据...</text>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-tip" wx:if="{{errorMsg && !loading}}">
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- 数据列表 -->
+  <scroll-view scroll-y style="max-height: calc(100vh - 200rpx);" wx:if="{{filteredList.length > 0 && !loading}}">
+    <view class="list">
+      <view class="item" wx:for="{{filteredList}}" wx:key="id">
+        <view class="item-header">
+          <text class="item-time">{{item.reportTime}}</text>
+          <text class="fall-tag" wx:if="{{item.fallStatus === 1}}">摔倒</text>
+        </view>
+        <view class="item-body">
+          <view class="data-item">
+            <text class="data-label">心率</text>
+            <text class="data-value" style="color:#FF6B6B">{{item.heartRate}}</text>
+          </view>
+          <view class="data-item">
+            <text class="data-label">血氧</text>
+            <text class="data-value" style="color:#4E6EF2">{{item.bloodOxygen}}</text>
+          </view>
+          <view class="data-item">
+            <text class="data-label">纬度</text>
+            <text class="data-value" style="font-size:24rpx">{{item.lat != null ? item.lat : '暂无'}}</text>
+          </view>
+          <view class="data-item">
+            <text class="data-label">经度</text>
+            <text class="data-value" style="font-size:24rpx">{{item.lon != null ? item.lon : '暂无'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 统计信息 -->
+    <view class="summary-bar" wx:if="{{selectedDate}}">
+      <text class="summary-text">{{selectedDate}} 共 {{filteredList.length}} 条记录</text>
+    </view>
+  </scroll-view>
+
+  <!-- 空状态 -->
+  <view class="empty-tip" wx:if="{{filteredList.length === 0 && !loading && !errorMsg}}">
+    <text>{{selectedDate ? selectedDate + ' 暂无记录' : '暂无历史数据'}}</text>
+  </view>
+</view>

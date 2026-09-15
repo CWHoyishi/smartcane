@@ -1,0 +1,30 @@
+/* 历史数据页面 */
+.container { padding: 32rpx; min-height: 100vh; box-sizing: border-box; }
+
+.filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
+.section-title { font-size: 30rpx; font-weight: 600; color: #1D2129; }
+.date-picker { background-color: #FFFFFF; border-radius: 48rpx; padding: 12rpx 28rpx; font-size: 24rpx; color: #4E6EF2; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.08); }
+
+/* 列表 */
+.list { display: flex; flex-direction: column; gap: 16rpx; }
+
+.item {
+  background-color: #FFFFFF;
+  border-radius: 12rpx;
+  padding: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.08);
+}
+.item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
+.item-time { font-size: 22rpx; color: #86909C; }
+.fall-tag { display: inline-block; background-color: rgba(255,107,107,0.1); color: #FF6B6B; font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 6rpx; }
+
+.item-body { display: flex; justify-content: space-around; }
+.data-item { text-align: center; }
+.data-label { font-size: 22rpx; color: #86909C; display: block; margin-bottom: 8rpx; }
+.data-value { font-size: 30rpx; font-weight: 600; color: #1D2129; }
+
+.empty-tip { text-align: center; padding: 120rpx 0; color: #86909C; font-size: 28rpx; }
+.loading-tip { text-align: center; padding: 120rpx 0; color: #4E6EF2; font-size: 28rpx; }
+.error-tip { text-align: center; padding: 80rpx 40rpx; color: #FF6B6B; font-size: 26rpx; background-color: rgba(255,107,107,0.05); border-radius: 12rpx; margin-top: 24rpx; }
+.summary-bar { text-align: center; margin-top: 16rpx; margin-bottom: 24rpx; }
+.summary-text { font-size: 24rpx; color: #86909C; }

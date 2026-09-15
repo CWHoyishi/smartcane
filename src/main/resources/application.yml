@@ -1,0 +1,95 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: smartcane-backend
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.88.130:3306/smartcane?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: Cwh130210.
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    timeout: 5000ms
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.smartcane.backend.entity.po
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+logging:
+  level:
+    com.smartcane.backend: debug
+    org.springframework.integration: info
+
+# OneNet 云平台配置
+#onenet:
+#  mqtt:
+#    host: tcp://mqtt.heclouds.com:6002
+#    productId: 896VnUK204
+#    accessKey: 7X1jZfdrwz8HM0dF46c7+QcnXz1B65utlUsdYXclO20=
+#    subscribeTopic: $sys/896VnUK204/+/thing/event/property/post
+#    qos: 1
+#    keepAlive: 60
+#  api:
+#    baseUrl: https://open.iot.10086.cn
+#    productId: 896VnUK204
+#    accessKey: 7X1jZfdrwz8HM0dF46c7+QcnXz1B65utlUsdYXclO20=
+#    deviceNames:
+#      - 862323084243065
+#    fetchInterval: 60
+# 中国移动CMIOT OneNET 配置（适配你页面产品）
+onenet:
+  mqtt:
+    host: tcp://896VnUK204.mqtts.acc.cmcconenet.cn:6002
+    productId: 896VnUK204
+    accessKey: 7X1jZfdrwz8HM0dF46c7+QcnXz1B65utlUsdYXclO20=
+    subscribeTopic: $sys/896VnUK204/+/thing/property/post
+    qos: 1
+    keepAlive: 60
+  api:
+    # ===== CMIOT 官方 thingmodel API（2026-06-23 根据官方文档更新）=====
+    # 文档来源: https://iot-api.heclouds.com
+    #
+    # 端点1 [最优先]: GET /thingmodel/query-device-property
+    #   → 查询设备最新属性功能点数据（支持OneJson、自定义透传协议）
+    #   参数: product_id, device_name
+    #
+    # 端点2: GET /thingmodel/query-device-property-history
+    #   → 查询设备属性历史功能点数据
+    #   参数: product_id, device_name, identifier, start_time(毫秒), end_time(毫秒)
+    #
+    # 端点3: POST /thingmodel/query-device-property-detail
+    #   → 下发物模型属性获取命令到设备（仅支持OneJson设备，需设备在线）
+    #   参数: product_id, device_name, params(array of identifiers)
+    endpoints:
+      - baseUrl: https://iot-api.heclouds.com
+        path: /thingmodel/query-device-property
+        method: GET
+      - baseUrl: https://iot-api.heclouds.com
+        path: /thingmodel/query-device-property-history
+        method: GET
+      - baseUrl: https://iot-api.heclouds.com
+        path: /thingmodel/query-device-property-detail
+        method: POST
+    productId: 896VnUK204
+    accessKey: 7X1jZfdrwz8HM0dF46c7+QcnXz1B65utlUsdYXclO20=
+    deviceNames:
+      - 862323084243065
+    fetchInterval: 10000
