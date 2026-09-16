@@ -3,8 +3,8 @@ package com.smartcane.backend.controller;
 import com.smartcane.backend.config.onenet.OneNetMqttProperties;
 import com.smartcane.backend.config.onenet.OneNetTokenUtil;
 import com.smartcane.backend.entity.vo.Result;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-@Api(tags = "OneNet 云平台管理")
+@Tag(name = "OneNet 云平台管理")
 @RestController
 @RequestMapping("/api/onenet")
 public class OneNetController {
@@ -21,7 +21,7 @@ public class OneNetController {
     @Autowired
     private OneNetMqttProperties properties;
 
-    @ApiOperation("查看 OneNet 配置信息")
+    @Operation(summary = "查看 OneNet 配置信息")
     @GetMapping("/config")
     public Result<Map<String, String>> getConfig() {
         Map<String, String> config = new HashMap<>();
@@ -38,7 +38,7 @@ public class OneNetController {
         return Result.success(config);
     }
 
-    @ApiOperation("生成 OneNet Token (用于调试)")
+    @Operation(summary = "生成 OneNet Token (用于调试)")
     @GetMapping("/token")
     public Result<Map<String, String>> generateToken() throws UnsupportedEncodingException {
         Map<String, String> result = new HashMap<>();

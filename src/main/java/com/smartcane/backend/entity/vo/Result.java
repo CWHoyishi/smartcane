@@ -1,19 +1,18 @@
 package com.smartcane.backend.entity.vo;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
-@ApiModel(description = "统一响应结果")
+@Schema(description = "统一响应结果")
 public class Result<T> {
-    @ApiModelProperty("响应码，200表示成功")
+    @Schema(description = "响应码，200表示成功")
     private Integer code;
 
-    @ApiModelProperty("响应消息")
+    @Schema(description = "响应消息")
     private String message;
 
-    @ApiModelProperty("响应数据")
+    @Schema(description = "响应数据")
     private T data;
 
     public static <T> Result<T> success() {

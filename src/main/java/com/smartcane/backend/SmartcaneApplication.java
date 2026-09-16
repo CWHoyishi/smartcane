@@ -21,7 +21,7 @@ public class SmartcaneApplication {
         SpringApplication.run(SmartcaneApplication.class, args);
         log.info("================================================");
         log.info("  智能拐杖系统后端启动成功!");
-        log.info("  Swagger文档: http://localhost:8080/doc.html");
+        log.info("  Swagger文档: http://localhost:8080/swagger-ui.html");
         log.info("  OneNet API 定时同步已启动（间隔: 配置值）");
         log.info("================================================");
     }
