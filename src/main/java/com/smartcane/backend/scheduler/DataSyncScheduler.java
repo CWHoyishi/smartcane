@@ -34,9 +34,9 @@ public class DataSyncScheduler {
 
     /**
      * 定时拉取所有配置设备的最新数据
-     * 使用 fixedDelayString 从配置文件读取间隔，默认 60 秒
+     * 使用 fixedDelayString 从配置文件读取间隔（毫秒），默认 60000 毫秒(60 秒)
      */
-    @Scheduled(fixedDelayString = "${onenet.api.fetchInterval:60000}")
+    @Scheduled(fixedDelayString = "${onenet.api.fetchIntervalMs:60000}")
     public void syncDeviceData() {
         List<String> deviceNames = properties.getApi().getDeviceNames();
         if (deviceNames == null || deviceNames.isEmpty()) {

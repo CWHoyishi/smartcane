@@ -63,7 +63,20 @@ public class OneNetApiService {
     @Autowired
     private CrutchSensorDataMapper sensorDataMapper;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    /** API Token 有效期（秒） */
+    private static final long TOKEN_TTL_SECONDS = 3600L;
+
+    /** Token 提前刷新窗口（秒）：剩余有效期低于该值时重新签名 */
+    private static final long TOKEN_REFRESH_AHEAD_SECONDS = 300L;
+
+    private final RestTemplate restTemplate;
+
+    private volatile String cachedApiToken;
+    private volatile long cachedApiTokenExpireAt;
+
+    public OneNetApiService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
 
     /**
      * 拉取指定设备的传感器数据并入库
@@ -75,11 +88,11 @@ public class OneNetApiService {
         OneNetMqttProperties.Api api = properties.getApi();
         List<OneNetMqttProperties.ApiEndpoint> endpoints = api.getEffectiveEndpoints();
 
-        log.info("[API拉取] 开始拉取设备 {} 的数据（共 {} 个端点）", deviceName, endpoints.size());
+        log.debug("[API拉取] 开始拉取设备 {} 的数据（共 {} 个端点）", deviceName, endpoints.size());
 
         for (int i = 0; i < endpoints.size(); i++) {
             OneNetMqttProperties.ApiEndpoint endpoint = endpoints.get(i);
-            log.info("[API拉取] [{}/{}] 尝试: {} {}", i + 1, endpoints.size(),
+            log.debug("[API拉取] [{}/{}] 尝试: {} {}", i + 1, endpoints.size(),
                     endpoint.getMethod(), endpoint.getPath());
 
             try {
@@ -105,7 +118,7 @@ public class OneNetApiService {
                 if (!result.success) {
                     log.warn("[API拉取] 端点失败: {}", result.message);
                 } else {
-                    log.info("[API拉取] 端点成功但无可提取的传感器字段");
+                    log.debug("[API拉取] 端点成功但无可提取的传感器字段");
                 }
             } catch (Exception e) {
                 log.error("[API拉取] 端点异常: {}", e.getMessage(), e);
@@ -114,6 +127,30 @@ public class OneNetApiService {
 
         log.error("[API拉取] 所有端点均未获取到有效传感器数据，设备: {}", deviceName);
         return false;
+    }
+
+    /**
+     * 获取 HTTP API 调用所需的 authorization token。
+     *
+     * token 自带 et 过期时间，有效期内重复做 HMAC-SHA256 签名没有意义，
+     * 故缓存到内存并在过期前 5 分钟刷新；用双重检查加锁，避免多线程调度时并发重复签名。
+     */
+    private String getApiToken(OneNetMqttProperties.Api api) {
+        long now = System.currentTimeMillis() / 1000;
+        String token = cachedApiToken;
+        if (token != null && now < cachedApiTokenExpireAt - TOKEN_REFRESH_AHEAD_SECONDS) {
+            return token;
+        }
+        synchronized (this) {
+            now = System.currentTimeMillis() / 1000;
+            if (cachedApiToken == null || now >= cachedApiTokenExpireAt - TOKEN_REFRESH_AHEAD_SECONDS) {
+                long et = now + TOKEN_TTL_SECONDS;
+                cachedApiToken = OneNetTokenUtil.generateApiToken(api.getProductId(), api.getAccessKey(), et);
+                cachedApiTokenExpireAt = et;
+                log.info("[API令牌] 已刷新，过期时间戳: {}", et);
+            }
+            return cachedApiToken;
+        }
     }
 
     /**
@@ -135,7 +172,7 @@ public class OneNetApiService {
         HttpMethod httpMethod = HttpMethod.valueOf(endpoint.getMethod().toUpperCase());
 
         // ===== 统一 Token 鉴权 =====
-        String token = OneNetTokenUtil.generateApiToken(api.getProductId(), api.getAccessKey());
+        String token = getApiToken(api);
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
@@ -175,7 +212,7 @@ public class OneNetApiService {
             entity = new HttpEntity<>(headers);
         }
 
-        log.info("[API拉取] {} {}", httpMethod.name(), url);
+        log.debug("[API拉取] {} {}", httpMethod.name(), url);
 
         ResponseEntity<byte[]> response = restTemplate.exchange(url, httpMethod, entity, byte[].class);
         FetchResult result = new FetchResult();
@@ -190,7 +227,7 @@ public class OneNetApiService {
         }
 
         String bodyStr = new String(bodyBytes, java.nio.charset.StandardCharsets.UTF_8);
-        log.info("[API拉取] 响应({}B): {}", bodyBytes.length,
+        log.debug("[API拉取] 响应({}B): {}", bodyBytes.length,
                 bodyStr.length() > 600 ? bodyStr.substring(0, 600) + "...[截断]" : bodyStr);
 
         // 解析 JSON
@@ -250,9 +287,9 @@ public class OneNetApiService {
         JSONObject dataObj;
         if (dataRaw instanceof JSONArray) {
             JSONArray arr = (JSONArray) dataRaw;
-            log.info("[解析] data 是数组格式，共 {} 条", arr.size());
+            log.debug("[解析] data 是数组格式，共 {} 条", arr.size());
             if (arr.isEmpty()) {
-                log.info("[解析] data 数组为空，无设备属性数据");
+                log.debug("[解析] data 数组为空，无设备属性数据");
                 return null;
             }
 
@@ -273,14 +310,14 @@ public class OneNetApiService {
                     if (time != null) {
                         flat.put("_" + identifier + "_time", time);
                     }
-                    log.info("[解析] [{}] identifier={}, value={}, type={}",
+                    log.debug("[解析] [{}] identifier={}, value={}, type={}",
                             i, identifier, value, propItem.getString("data_type"));
                     foundProps = true;
                 }
             }
 
             if (foundProps) {
-                log.info("[解析] 从数组提取 {} 个属性: {}", flat.size(), flat.keySet());
+                log.debug("[解析] 从数组提取 {} 个属性: {}", flat.size(), flat.keySet());
                 return flat;
             }
 
@@ -288,7 +325,7 @@ public class OneNetApiService {
             Object first = arr.get(0);
             if (first instanceof JSONObject) {
                 dataObj = (JSONObject) first;
-                log.info("[解析] 无 identifier 结构，取第1条作为属性源");
+                log.debug("[解析] 无 identifier 结构，取第1条作为属性源");
             } else {
                 log.warn("[解析] 数组首元素非对象类型: {}", first.getClass());
                 return null;
@@ -300,7 +337,7 @@ public class OneNetApiService {
             return null;
         }
 
-        log.info("[解析] data keys: {}, 路径: {}", dataObj.keySet(), path);
+        log.debug("[解析] data keys: {}, 路径: {}", dataObj.keySet(), path);
 
         // ===== 格式1: data 直接包含属性对象 { "HR": { "value": 75 }, ... } =====
         // 这是最常见的 thingmodel 响应格式
@@ -323,14 +360,14 @@ public class OneNetApiService {
         }
 
         if (!flat.isEmpty()) {
-            log.info("[解析] 成功提取 {} 个属性: {}", flat.size(), flat.keySet());
+            log.debug("[解析] 成功提取 {} 个属性: {}", flat.size(), flat.keySet());
             return flat;
         }
 
         // ===== 格式2: data.properties 包含属性 =====
         JSONObject propsContainer = dataObj.getJSONObject("properties");
         if (propsContainer != null) {
-            log.info("[解析] 检测到 data.properties 结构, keys: {}", propsContainer.keySet());
+            log.debug("[解析] 检测到 data.properties 结构, keys: {}", propsContainer.keySet());
             for (String identifier : PROPERTY_IDENTIFIERS) {
                 Object propObj = propsContainer.get(identifier);
                 if (propObj instanceof JSONObject) {
@@ -343,7 +380,7 @@ public class OneNetApiService {
                 }
             }
             if (!flat.isEmpty()) {
-                log.info("[解析] 从 properties 提取 {} 个属性: {}", flat.size(), flat.keySet());
+                log.debug("[解析] 从 properties 提取 {} 个属性: {}", flat.size(), flat.keySet());
                 return flat;
             }
         }
@@ -353,7 +390,7 @@ public class OneNetApiService {
             Object listObj = dataObj.get("list");
             if (listObj instanceof List) {
                 List<?> list = (List<?>) listObj;
-                log.info("[解析] history 返回 {} 条记录", list.size());
+                log.debug("[解析] history 返回 {} 条记录", list.size());
                 // 取最后一条（最新的）记录
                 for (int i = list.size() - 1; i >= 0; i--) {
                     Object item = list.get(i);
@@ -373,14 +410,14 @@ public class OneNetApiService {
                     }
                 }
                 if (!flat.isEmpty()) {
-                    log.info("[解析] 从 history 提取 {} 个属性: {}", flat.size(), flat.keySet());
+                    log.debug("[解析] 从 history 提取 {} 个属性: {}", flat.size(), flat.keySet());
                     return flat;
                 }
             }
         }
 
         // ===== 兜底：扁平化提取所有叶子节点 =====
-        log.info("[解析] 兜底：扁平化提取 data 叶子节点...");
+        log.debug("[解析] 兜底：扁平化提取 data 叶子节点...");
         flattenLeafNodes(dataObj, flat);
 
         if (flat.isEmpty()) {
@@ -389,7 +426,7 @@ public class OneNetApiService {
                             dataObj.toJSONString().substring(0, 400) + "..." :
                             dataObj.toJSONString());
         } else {
-            log.info("[解析] 兜底提取到 {} 个字段: {}", flat.size(), flat.keySet());
+            log.debug("[解析] 兜底提取到 {} 个字段: {}", flat.size(), flat.keySet());
         }
 
         return flat.isEmpty() ? null : flat;

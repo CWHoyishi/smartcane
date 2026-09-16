@@ -47,8 +47,8 @@ public class OneNetMqttProperties {
         /** 要拉取数据的设备名列表 */
         private List<String> deviceNames = new ArrayList<>();
 
-        /** 定时拉取间隔（秒），默认60秒 */
-        private int fetchInterval = 60;
+        /** 定时拉取间隔（毫秒），默认60000毫秒(60秒) */
+        private int fetchIntervalMs = 60000;
 
         /**
          * 兼容旧配置：如果没有配置 endpoints 列表，则从 baseUrl 生成一个默认端点

@@ -26,15 +26,13 @@ mybatis-plus:
   type-aliases-package: com.smartcane.backend.entity.po
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto
 
 logging:
   level:
-    com.smartcane.backend: debug
-    org.springframework.integration: info
+    com.smartcane.backend: info
 
 # OneNet 云平台配置
 #onenet:
@@ -90,4 +88,4 @@ onenet:
     accessKey: 7X1jZfdrwz8HM0dF46c7+QcnXz1B65utlUsdYXclO20=
     deviceNames:
       - 862323084243065
-    fetchInterval: 10000
+    fetchIntervalMs: 60000

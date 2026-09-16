@@ -32,7 +32,7 @@ public class OneNetController {
         config.put("apiEndpoints", properties.getApi().getEffectiveEndpoints().toString());
         config.put("apiProductId", properties.getApi().getProductId());
         config.put("apiDeviceNames", String.join(",", properties.getApi().getDeviceNames()));
-        config.put("apiFetchInterval", properties.getApi().getFetchInterval() + "秒");
+        config.put("apiFetchIntervalMs", properties.getApi().getFetchIntervalMs() + "毫秒");
         config.put("dynamicClientId", "smartcane_backend_"
                 + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
         return Result.success(config);

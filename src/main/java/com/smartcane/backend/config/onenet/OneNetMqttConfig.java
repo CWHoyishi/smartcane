@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @Component
@@ -56,11 +57,12 @@ public class OneNetMqttConfig {
 
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
-                    String payload = new String(message.getPayload());
-                    log.info("========== 收到 OneNet MQTT 消息 ==========");
-                    log.info("  Topic : {}", topic);
-                    log.info("  Payload: {}", payload);
-                    log.info("===========================================");
+                    String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
+                    // 设备高频上报时逐条打印原始报文会拖慢 Paho 回调线程，故降为 debug 并截断
+                    if (log.isDebugEnabled()) {
+                        log.debug("[MQTT接收] Topic: {}, Payload: {}", topic,
+                                payload.length() > 500 ? payload.substring(0, 500) + "...[截断]" : payload);
+                    }
 
                     try {
                         dataProcessor.process(topic, payload);

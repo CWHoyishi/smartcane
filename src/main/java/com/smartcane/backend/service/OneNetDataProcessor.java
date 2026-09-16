@@ -70,7 +70,7 @@ public class OneNetDataProcessor {
 
         try {
             sensorDataMapper.insert(sensorData);
-            log.info("[保存-成功] 传感器数据已写入数据库 - ID: {}, 设备: {}, 心率: {}, 血氧: {}, 位置: {}/{}, 摔倒: {}",
+            log.debug("[保存-成功] 传感器数据已写入数据库 - ID: {}, 设备: {}, 心率: {}, 血氧: {}, 位置: {}/{}, 摔倒: {}",
                     sensorData.getId(),
                     deviceSn,
                     sensorData.getHeartRate(),
