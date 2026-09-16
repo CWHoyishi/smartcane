@@ -18,6 +18,7 @@ spring:
     redis:
       host: 192.168.88.130
       port: 6379
+      password: ${REDIS_PASSWORD:123456}
       database: 0
       timeout: 5000ms
 

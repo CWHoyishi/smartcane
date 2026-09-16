@@ -23,7 +23,7 @@
 | Maven | 3.6.3（IDEA 内置）；**活动本地仓库为 `D:\IDEA\plugins\maven\lib\maven3\mvn_repo`**，非默认 `~/.m2` |
 | Maven 仓库连通性 | Central 可达（需在沙箱外执行）；`settings.xml` 中 mirror 用的是 aliyun 旧版 nexus 地址 |
 | MySQL | `192.168.88.130:3306` 可达 |
-| Redis | `192.168.88.130:6379` 可达，但返回 `NOAUTH Authentication required`（配置中缺密码） |
+| Redis | `192.168.88.130:6379` 可达，密码 `123456` 认证通过；**版本 2.8.19**，不支持 Stream（`XADD`/`XINFO` 报 unknown command），仅基础命令与 List 可用 |
 | OneNET MQTT | `896VnUK204.mqtts.acc.cmcconenet.cn:6002` TCP 可达，但应用连接后对端 EOF（待确认） |
 | 后端端口 | 8080 |
 
@@ -34,6 +34,7 @@
 
 1. **技术栈**：升级到 Spring Boot 3.4.5 + Java 17（用户原选 3.2.x，因 3.2 开源维护期已结束、且本地仓库已缓存 3.4.5 而改用 3.4.5）。
 2. **消息队列**：采用 **Redis Stream**（出于技术栈完备性考虑）。需配套消费组、手动 ACK 与 pending 兜底，否则重启会丢消息。
+   - ⚠️ 实测该实例为 **2.8.19**，**不支持 Stream**（Stream 需 5.0+，`XAUTOCLAIM` 需 6.2+）。需先升级容器才能落地本方案；备选是在 2.8 上用 List 可靠队列（`LPUSH`/`BRPOPLPUSH`）自行实现重试与孤儿消息回收。
 3. **告警通道**：采用 **短信**，不使用微信订阅消息。当前阶段只实现 `MockSmsSender`（输出到日志），正式实现（阿里云/腾讯云）留接口位置。
    - 因此**不需要**用户体系：设备表已有 `guardian_phone` 字段，短信直接发往该号码，无需 openid、`wx.login`、绑定表。
 4. **部署场景**：内网演示。故不引入 HTTPS、完整 JWT 鉴权体系；跨域沿用现有宽松配置。
@@ -77,7 +78,7 @@
 
 ### 迭代 2：并发解耦 + Redis Stream（待做）
 
-**前置阻塞**：Redis 需要密码，`application.yml` 目前无 `password` 字段（实例返回 `NOAUTH`）。建议以环境变量方式提供，避免明文入库。
+**前置阻塞**：Redis 版本过低。密码已配置为 `${REDIS_PASSWORD:123456}`（可用环境变量覆盖），但实例为 **2.8.19**，不支持 Stream，需先升级容器（建议 `redis:7-alpine` 并保留 `requirepass`）。
 
 - `DataSyncScheduler` 串行拉取改为固定大小线程池并发。
 - MQTT 回调仅做解析与投递，`XADD` 到 Redis Stream；消费者（有界线程池）负责入库。
@@ -125,7 +126,7 @@
 
 | 项 | 状态 | 说明 |
 | --- | --- | --- |
-| Redis 密码 | **待提供** | 迭代 2 的阻塞项 |
+| Redis 版本 | **阻塞中** | 实例为 2.8.19，不支持 Stream，迭代 2 需先升级容器 |
 | OneNET MQTT EOF | **待确认** | TCP 可达但 broker 未回 CONNACK，需在正常网络下复现判断是网络干扰还是凭据/产品配置问题 |
 | 运行期回归 | **待执行** | 沙箱无法启动 NIO 服务，需在 IDE 启动并验证接口与文档页 |
 | 短信签名与模板 | 待申请 | 未就绪前仅 MockSmsSender |
