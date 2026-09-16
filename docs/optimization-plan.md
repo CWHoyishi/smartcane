@@ -217,6 +217,7 @@
 
 - 建表脚本 `docs/sql/iteration9_tiering.sql`（✅ 2026-09-16 已执行）：唯一键 `uk_device_hour (device_sn, stat_hour)`，字段与日表一致（同样存 sum + count）。
 - 清理任务 `DataSyncScheduler.cleanExpiredSensorData`：保留期 48 小时 → 7 天（常量 `RAW_DATA_RETENTION_DAYS`），仍是每天凌晨 3 点执行。
+- 删除前保护：先调用 `healthStatService.rebuild(RAW_DATA_RETENTION_DAYS + 1)` 重算聚合（多算 1 天是为了覆盖「截止点落在整点之间」的那 1 小时），再删明细；聚合抛异常时直接跳过本次删除，不冒丢历史的风险。
 
 **聚合链路**（`HealthStatScheduler` 每 10 分钟调用一次）
 
@@ -253,6 +254,7 @@
 | Redis 版本 | **阻塞中** | 实例为 2.8.19，不支持 Stream，迭代 2 需先升级容器 |
 | OneNET MQTT EOF | **待确认** | TCP 可达但 broker 未回 CONNACK，需在正常网络下复现判断是网络干扰还是凭据/产品配置问题 |
 | 运行期回归 | 部分完成 | 沙箱无法启动 NIO 服务；迭代 5 的告警链路已在运行环境产生真实记录（`t_alarm_record` 内已有 FALL / HEART_RATE 记录），接口与前端仍建议人工过一遍 |
+| 小时表回填 | 待执行 | 迭代 9 需重启后端才生效（启动即跑 `rebuild(2)`）；要补更早历史则调 `POST /api/health-stat/rebuild?days=7`。2026-09-16 实测库内 `t_health_hourly_stat` 仍为 0 行、日表仅今天 1 行 |
 | 唯一索引未建 | ✅ 已执行 | `docs/sql/iteration3_dedup.sql` 已于 2026-09-16 在库上执行，重复行 958 → 452 |
 | 告警判定未验证 | 待执行 | 迭代 5 的判定需在 IDE 启动后灌入模拟数据，确认告警生成与状态流转 |
 | 短信签名与模板 | 待申请 | 未就绪前仅 MockSmsSender |

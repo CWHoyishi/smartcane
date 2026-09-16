@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.smartcane.backend.config.onenet.OneNetMqttProperties;
 import com.smartcane.backend.entity.po.CrutchSensorData;
 import com.smartcane.backend.mapper.CrutchSensorDataMapper;
+import com.smartcane.backend.service.HealthStatService;
 import com.smartcane.backend.service.OneNetApiService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,9 @@ public class DataSyncScheduler {
 
     @Autowired
     private CrutchSensorDataMapper sensorDataMapper;
+
+    @Autowired
+    private HealthStatService healthStatService;
 
     /**
      * 定时拉取所有配置设备的最新数据
@@ -76,11 +80,20 @@ public class DataSyncScheduler {
      *
      * 数据分层：明细（t_crutch_sensor_data，7 天）→ 小时统计（t_health_hourly_stat，长期保留）
      * → 日/周报（由小时统计求和）。报表都从小时表往上算，所以明细被清理不会让历史报表断档。
-     * 小时表的重算窗口只有 48 小时（HealthStatScheduler），与这里的 7 天保留期之间有 5 天安全边际：
-     * 只要应用在这 5 天内启动过一次，待聚合的小时就都被落库了。
+     *
+     * 删除前先按删除窗口（多算 1 天，覆盖截止点落在整点之间的那 1 小时）重算一次聚合：
+     * 定时任务平时只覆盖 48 小时，若这段期间停过机，更早的明细就会在没进小时表的情况下被删。
+     * 聚合失败则跳过本次删除，明细留到下次再删，宁可多占空间也不丢历史。
      */
     @Scheduled(cron = "0 0 3 * * ?")
     public void cleanExpiredSensorData() {
+        try {
+            healthStatService.rebuild(RAW_DATA_RETENTION_DAYS + 1);
+        } catch (Exception e) {
+            log.error("[数据清理] 删除前聚合失败，跳过本次删除以免明细丢失: {}", e.getMessage(), e);
+            return;
+        }
+
         try {
             LocalDateTime cutoff = LocalDateTime.now().minusDays(RAW_DATA_RETENTION_DAYS);
             QueryWrapper<CrutchSensorData> wrapper = new QueryWrapper<>();
