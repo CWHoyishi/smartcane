@@ -86,14 +86,16 @@
 - `ensureDeviceExists` 增加本地缓存，去掉每条消息一次 `selectOne`。
 - → 验证：200 msg/s 压测无堆积；杀掉消费者再启动不丢消息。
 
-### 迭代 3：去重与 `report_time` 统一（代码已完成，DDL 待执行）
+### 迭代 3：去重与 `report_time` 统一（已完成，DDL 已执行）
 
 - 新增 `SensorDataWriter`：两条采集通道共用的落库入口，命中唯一键时按「重复上报」忽略（不再当故障报警）。手工上报接口 `report()` 也统一走它。
 - `report_time` 口径统一：两条通道都优先取平台时间戳，并统一 `truncatedTo(SECONDS)` 截断到秒。
   - 这是去重能生效的前提：`report_time` 是 `DATETIME(0)`，MySQL 会对小数秒做四舍五入，不截断就可能出现同一采样两个不同值。
 - 迁移脚本：`docs/sql/iteration3_dedup.sql`（查重复 → 删重复保留最小 id → 建唯一索引 `uk_device_report` → 验证）。
 - ⚠️ 应用侧改动与唯一索引必须一起上线，否则去重不生效（没有索引时不会产生冲突）。
-- → 验证：执行脚本后，双通道并发写入不再产生重复行。
+- ✅ 迁移已于 2026-09-16 在库上执行：清理重复行 507 条（958 → 452），唯一索引 `uk_device_report` 已建立，重复组归零。
+  - 删除前已逐组校验重复行字段值完全一致，不存在数据丢失。
+- → 验证：待运行期回归（双通道并发写入不再产生重复行）。
 
 ### 迭代 4：查询收敛（已完成）
 
@@ -101,11 +103,37 @@
 - 分页参数加上限保护：`pageNum` 最小 1，`pageSize` 限制在 1~200（默认 10）。
 - → 验证：单次响应体小于 100 KB。
 
-### 迭代 5：告警闭环（待做）
+### 迭代 5：告警闭环（后端已完成；前端入口、未确认升级留到后续）
 
-- 新增 `t_alarm_record`（device_sn、alarm_type、level、status 待处理/已确认/误报、handle_by、handle_time、快照数据）。
-- 跌倒、心率越界、血氧越界判定；未确认自动升级；小程序提供处置入口。
-- → 验证：灌入模拟数据能生成告警并完成状态流转。
+**判定规则**（`AlarmEvaluator`，阈值固化为常量，现场要调只改这里）：
+
+| 条件 | 告警类型 | 级别 |
+| --- | --- | --- |
+| `fall_status = 1` | `FALL` | 3 紧急 |
+| 心率 `< 50` 或 `> 120` | `HEART_RATE` | 2 重要 |
+| 血氧 `< 90` | `BLOOD_OXYGEN` | 2 重要 |
+
+- 心率/血氧为 `0` 视为「未佩戴 / 无效读数」，不判定为异常，避免夜间误告警。
+- 判定挂在 `SensorDataWriter` 采样**落库成功之后**：双通道重复上报不会重复判定；判定异常只记 error 日志，不阻断采集主链路。
+
+**存储**：新增 `t_alarm_record`，建表脚本 `docs/sql/iteration5_alarm.sql`（✅ 2026-09-16 已在库上执行）。
+
+- 唯一键 `uk_device_alarm (device_sn, alarm_type, report_time)` 是第二道防线，应用侧命中 `DuplicateKeyException` 直接忽略。
+  - 实测：同设备同类型同时间重复插入被拒绝；同采样不同类型（FALL + HEART_RATE）各留一条。
+- 索引 `idx_alarm_status_time (status, report_time)` 支撑待处理列表查询。
+
+**接口**（`AlarmController`，前缀 `/api/alarm`）：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/page` | 分页查询告警（可选 deviceSn / alarmType / status），分页保护同迭代 4 |
+| GET | `/pending` | 待处理告警，最近 100 条 |
+| GET | `/list/{deviceSn}` | 单设备告警，最近 100 条 |
+| PUT | `/ack` | 处置告警，`status` 只接受 1(已确认) / 2(误报) |
+
+- 处置是一次性动作：已处置记录不允许再次改判，避免现场重复点击覆盖结论（如需允许改判，去掉 `AlarmServiceImpl.ack` 中的状态校验即可）。
+- 未做（原计划中）：未确认自动升级（依赖迭代 6 的通知通道）、前端/小程序处置入口（属前端迭代）。
+- → 验证：在 IDE 启动后灌入模拟数据，确认能生成告警并完成状态流转。
 
 ### 迭代 6：短信通道（待做）
 
@@ -124,7 +152,8 @@
 - `t_crutch_sensor_data` 已有索引：`idx_dev_report (device_sn, report_time)`、`idx_fall_status (fall_status)`。
   → 原计划中的「补索引」项作废；`idx_fall_status` 选择性低，可选优化为 `(fall_status, report_time)`，演示阶段不急。
 - 外键：`t_crutch_sensor_data.device_sn` → `t_crutch_device.device_sn`，**ON DELETE CASCADE**。
-- 无唯一键，去重需先清理历史重复数据再加索引。
+- 唯一键 `uk_device_report (device_sn, report_time)` 已由迭代 3 建立；`idx_dev_report` 列相同，已冗余（可选删除）。
+- 新增 `t_alarm_record`（迭代 5）：唯一键 `uk_device_alarm (device_sn, alarm_type, report_time)`、索引 `idx_alarm_status_time (status, report_time)`，外键同样 `ON DELETE CASCADE`。
 
 ## 7. 风险与待办
 
@@ -133,7 +162,8 @@
 | Redis 版本 | **阻塞中** | 实例为 2.8.19，不支持 Stream，迭代 2 需先升级容器 |
 | OneNET MQTT EOF | **待确认** | TCP 可达但 broker 未回 CONNACK，需在正常网络下复现判断是网络干扰还是凭据/产品配置问题 |
 | 运行期回归 | **待执行** | 沙箱无法启动 NIO 服务，需在 IDE 启动并验证接口与文档页 |
-| 唯一索引未建 | **待执行** | `docs/sql/iteration3_dedup.sql` 需在数据库执行，去重才生效 |
+| 唯一索引未建 | ✅ 已执行 | `docs/sql/iteration3_dedup.sql` 已于 2026-09-16 在库上执行，重复行 958 → 452 |
+| 告警判定未验证 | 待执行 | 迭代 5 的判定需在 IDE 启动后灌入模拟数据，确认告警生成与状态流转 |
 | 短信签名与模板 | 待申请 | 未就绪前仅 MockSmsSender |
 | 敏感信息 | 已知风险 | `application.yml` 中 MySQL 密码与 OneNET accessKey 为明文，且已进入 git 历史 |
 | fastjson 1.2.83 | 待处理 | 存在已知反序列化风险，计划在迭代 3 之后替换为 Jackson 或 fastjson2 |
