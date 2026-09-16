@@ -15,11 +15,19 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class OneNetDataProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(OneNetDataProcessor.class);
+
+    /** 设备存在性缓存有效期：设备可能被删除后再上报，用 TTL 收敛，不做永久缓存 */
+    private static final long DEVICE_CACHE_TTL_MILLIS = 10 * 60 * 1000L;
+
+    /** 已确认存在的设备（device_sn → 写入缓存的时刻）。每条消息都 selectOne 会让上报链路完全卡在数据库上。 */
+    private final Map<String, Long> knownDevices = new ConcurrentHashMap<>();
 
     @Autowired
     private CrutchDeviceMapper deviceMapper;
@@ -278,6 +286,10 @@ public class OneNetDataProcessor {
     }
 
     private void ensureDeviceExists(String deviceSn) {
+        Long cachedAt = knownDevices.get(deviceSn);
+        if (cachedAt != null && System.currentTimeMillis() - cachedAt < DEVICE_CACHE_TTL_MILLIS) {
+            return;
+        }
         try {
             QueryWrapper<CrutchDevice> wrapper = new QueryWrapper<>();
             wrapper.eq("device_sn", deviceSn);
@@ -292,6 +304,7 @@ public class OneNetDataProcessor {
                 deviceMapper.insert(newDevice);
                 log.info("自动注册新设备: {}", deviceSn);
             }
+            knownDevices.put(deviceSn, System.currentTimeMillis());
         } catch (Exception e) {
             log.warn("检查/注册设备失败: {}", e.getMessage());
         }

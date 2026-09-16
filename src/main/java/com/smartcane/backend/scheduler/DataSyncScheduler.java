@@ -12,8 +12,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * OneNet 数据定时同步调度器
@@ -27,6 +37,9 @@ public class DataSyncScheduler {
     /** 原始采样明细保留天数：更早的明细由小时聚合表长期承载 */
     private static final int RAW_DATA_RETENTION_DAYS = 7;
 
+    /** 拉取线程数：HTTP 拉取与落库都是等待型 IO，串行拉多台设备耗时线性叠加 */
+    private static final int FETCH_THREADS = 4;
+
     @Autowired
     private OneNetApiService apiService;
 
@@ -39,9 +52,35 @@ public class DataSyncScheduler {
     @Autowired
     private HealthStatService healthStatService;
 
+    private final AtomicInteger fetchThreadSeq = new AtomicInteger();
+
+    private ExecutorService fetchExecutor;
+
+    /**
+     * 拉取线程池随应用生命周期创建与销毁。
+     * 用固定大小而非缓存池：设备数量有限，固定线程数才能给出稳定的并发上限。
+     */
+    @PostConstruct
+    public void initFetchExecutor() {
+        fetchExecutor = Executors.newFixedThreadPool(FETCH_THREADS, runnable -> {
+            Thread thread = new Thread(runnable, "onenet-fetch-" + fetchThreadSeq.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        });
+    }
+
+    @PreDestroy
+    public void shutdownFetchExecutor() {
+        if (fetchExecutor != null) {
+            fetchExecutor.shutdownNow();
+        }
+    }
+
     /**
      * 定时拉取所有配置设备的最新数据
      * 使用 fixedDelayString 从配置文件读取间隔（毫秒），默认 60000 毫秒(60 秒)
+     *
+     * 多设备并发拉取；invokeAll 会等所有任务结束才返回，配合 fixedDelay 保证两次拉取不会重叠。
      */
     @Scheduled(fixedDelayString = "${onenet.api.fetchIntervalMs:60000}")
     public void syncDeviceData() {
@@ -51,25 +90,40 @@ public class DataSyncScheduler {
             return;
         }
 
-        log.debug("[定时同步] 开始拉取 {} 个设备的数据", deviceNames.size());
-        int successCount = 0;
-        int failCount = 0;
-
+        List<Callable<Boolean>> tasks = new ArrayList<>();
         for (String deviceName : deviceNames) {
             if (deviceName == null || deviceName.trim().isEmpty()) {
                 continue;
             }
-            try {
-                boolean ok = apiService.fetchDeviceProperties(deviceName.trim());
-                if (ok) {
+            String name = deviceName.trim();
+            tasks.add(() -> {
+                try {
+                    return apiService.fetchDeviceProperties(name);
+                } catch (Exception e) {
+                    log.error("[定时同步] 设备 {} 拉取异常: {}", name, e.getMessage());
+                    return false;
+                }
+            });
+        }
+
+        log.debug("[定时同步] 开始并发拉取 {} 个设备的数据", tasks.size());
+        int successCount = 0;
+        int failCount = 0;
+        try {
+            for (Future<Boolean> result : fetchExecutor.invokeAll(tasks)) {
+                if (Boolean.TRUE.equals(result.get())) {
                     successCount++;
                 } else {
                     failCount++;
                 }
-            } catch (Exception e) {
-                failCount++;
-                log.error("[定时同步] 设备 {} 拉取异常: {}", deviceName, e.getMessage());
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("[定时同步] 本次拉取被中断，已放弃剩余结果");
+            return;
+        } catch (ExecutionException e) {
+            failCount++;
+            log.error("[定时同步] 拉取任务异常: {}", e.getMessage(), e);
         }
 
         log.debug("[定时同步] 完成 - 成功: {}, 失败: {}", successCount, failCount);

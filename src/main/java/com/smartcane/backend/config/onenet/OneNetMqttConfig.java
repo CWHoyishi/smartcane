@@ -24,6 +24,9 @@ public class OneNetMqttConfig {
     @Autowired
     private com.smartcane.backend.service.OneNetDataProcessor dataProcessor;
 
+    @Autowired
+    private com.smartcane.backend.service.SensorMessageQueue sensorMessageQueue;
+
     private org.eclipse.paho.client.mqttv3.MqttClient mqttClient;
 
     @PostConstruct
@@ -65,7 +68,11 @@ public class OneNetMqttConfig {
                     }
 
                     try {
-                        dataProcessor.process(topic, payload);
+                        // 回调线程只投递，落库与告警交给消费者线程池：设备高频上报时回调线程不能被 DB 阻塞
+                        if (!sensorMessageQueue.enqueue(topic, payload)) {
+                            // Redis 不可用时退化为同步处理：慢一点，但不能丢消息
+                            dataProcessor.process(topic, payload);
+                        }
                     } catch (Exception e) {
                         log.error("处理消息异常", e);
                     }

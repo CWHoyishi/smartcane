@@ -10,7 +10,7 @@
 | 后端框架 | Spring Boot 3.4.5 + Java 17 | 原 2.6.13 + Java 8，已升级 |
 | 持久层 | MyBatis-Plus 3.5.7 + MySQL 8 | 原 3.5.5（starter 坐标不同） |
 | 接口文档 | springdoc-openapi 2.8.5 | 原 knife4j 3.0.3 + springfox，Spring 6 下不可用 |
-| 缓存/消息 | Redis（Docker 部署） | 依赖与配置已就绪，业务代码尚未使用 |
+| 消息队列 | Redis List 可靠队列（Docker 部署，2.8.19） | 迭代 2 落地：上报链路已接入投递/消费 |
 | 物联网接入 | OneNET：MQTT 推送 + HTTP 物模型 API 拉取 | 双通道写同一张表 |
 | 前端 | Vue 3 + Vite + Element Plus | dev server 端口 3000，`/api` 代理到 8080 |
 | 小程序 | 微信原生小程序 | `utils/api.js` 的 BASE_URL 指向后端 8080 |
@@ -23,7 +23,7 @@
 | Maven | 3.6.3（IDEA 内置）；**活动本地仓库为 `D:\IDEA\plugins\maven\lib\maven3\mvn_repo`**，非默认 `~/.m2` |
 | Maven 仓库连通性 | Central 可达（需在沙箱外执行）；`settings.xml` 中 mirror 用的是 aliyun 旧版 nexus 地址 |
 | MySQL | `192.168.88.130:3306` 可达 |
-| Redis | `192.168.88.130:6379` 可达，密码 `123456` 认证通过；**版本 2.8.19**，不支持 Stream（`XADD`/`XINFO` 报 unknown command），仅基础命令与 List 可用 |
+| Redis | `192.168.88.130:6379` 可达，密码 `123456` 认证通过；**版本 2.8.19**，不支持 Stream（`XADD`/`XINFO` 报 unknown command），仅基础命令与 List 可用。迭代 2 用到的 `LPUSH` / `RPOPLPUSH` / `LREM` 已在真实实例上用 RESP 协议实测通过 |
 | OneNET MQTT | `896VnUK204.mqtts.acc.cmcconenet.cn:6002` TCP 可达，但应用连接后对端 EOF（待确认） |
 | 后端端口 | 8080 |
 
@@ -33,8 +33,8 @@
 ## 3. 已确认的决策
 
 1. **技术栈**：升级到 Spring Boot 3.4.5 + Java 17（用户原选 3.2.x，因 3.2 开源维护期已结束、且本地仓库已缓存 3.4.5 而改用 3.4.5）。
-2. **消息队列**：采用 **Redis Stream**（出于技术栈完备性考虑）。需配套消费组、手动 ACK 与 pending 兜底，否则重启会丢消息。
-   - ⚠️ 实测该实例为 **2.8.19**，**不支持 Stream**（Stream 需 5.0+，`XAUTOCLAIM` 需 6.2+）。需先升级容器才能落地本方案；备选是在 2.8 上用 List 可靠队列（`LPUSH`/`BRPOPLPUSH`）自行实现重试与孤儿消息回收。
+2. **消息队列**（2026-09-16 定案，选 List 不升级容器）：原选 **Redis Stream**，但实例为 **2.8.19**（Stream 需 5.0+），改用 **List 可靠队列**：`LPUSH` 投递 → `RPOPLPUSH` 搬进各 worker 的处理中队列 → 处理完 `LREM` 确认；进程被杀时残留消息由启动恢复搬回主队列，重复由唯一键 `uk_device_report` 吸收。
+   - 代价：消费组、pending 查询、历史回放这些 Stream 内建的语义要自己维护，积压只能看 `LLEN`。
 3. **告警通道**：采用 **短信**，不使用微信订阅消息。当前阶段只实现 `MockSmsSender`（输出到日志），正式实现（阿里云/腾讯云）留接口位置。
    - 因此**不需要**用户体系：设备表已有 `guardian_phone` 字段，短信直接发往该号码，无需 openid、`wx.login`、绑定表。
 4. **部署场景**：内网演示。故不引入 HTTPS、完整 JWT 鉴权体系；跨域沿用现有宽松配置。
@@ -77,15 +77,18 @@
 - `OneNetMqttConfig`：MQTT 报文解码显式指定 `StandardCharsets.UTF_8`（原先依赖平台默认编码，中文环境下有隐患）。
 - 验证：`mvn clean compile` 通过（30 个源文件，release 17）。
 
-### 迭代 2：并发解耦 + Redis Stream（待做）
+### 迭代 2：并发解耦 + Redis List 可靠队列（已完成，待运行验证）
 
-**前置阻塞**：Redis 版本过低。密码已配置为 `${REDIS_PASSWORD:123456}`（可用环境变量覆盖），但实例为 **2.8.19**，不支持 Stream，需先升级容器（建议 `redis:7-alpine` 并保留 `requirepass`）。
+**阻塞已绕开**：实例为 **2.8.19** 不支持 Stream，2026-09-16 定案改用 List 可靠队列，不升级容器。密码仍走 `${REDIS_PASSWORD:123456}`。
 
-- `DataSyncScheduler` 串行拉取改为固定大小线程池并发。
-- MQTT 回调仅做解析与投递，`XADD` 到 Redis Stream；消费者（有界线程池）负责入库。
-- 消费组 + 手动 ACK + `XPENDING`/`XCLAIM` 兜底，保证重启不丢消息。
-- `ensureDeviceExists` 增加本地缓存，去掉每条消息一次 `selectOne`。
-- → 验证：200 msg/s 压测无堆积；杀掉消费者再启动不丢消息。
+- `DataSyncScheduler`：多设备改并发拉取（固定 4 线程池），`invokeAll` 等全部完成才返回，配合 `fixedDelay` 两次拉取不会重叠。
+- 生产端 `SensorMessageQueue`：MQTT 回调只投递，报文编码为 `topic + 换行 + payload`（topic 不含换行，按第一个换行切分永远安全）；Redis 不可用时 `enqueue` 返回 false，回调退化为同步处理，不丢数据。
+- 消费端 `SensorMessageConsumer`：4 个固定 worker，各有独立处理中队列 `smartcane:sensor:processing:{n}`，`RPOPLPUSH` 取、处理完 `LREM` 确认；空队列轮询间隔 100ms。
+  - 刻意不用阻塞式 `BRPOPLPUSH`：实测它在 2.8.19 上超时返回的是 nil 多批量（`*-1`）而非普通 nil，解析细节依赖客户端；轮询最多多 100ms 延迟，语义更可控。
+- 启动恢复：`@PostConstruct` 把各处理中队列的残留搬回主队列，覆盖「进程被杀」；处理失败的消息也确认（避免毒消息死循环），原始报文进错误日志。
+- `OneNetDataProcessor.ensureDeviceExists`：加 10 分钟 TTL 的本地缓存（`ConcurrentHashMap`），去掉每条消息一次 `selectOne`。
+- HTTP 拉取通道不再二次入队：它本来就跑在调度器自己的线程池里，再排队只是多一跳。
+- → 验证：`mvn -B -o compile` 通过（56 个源文件）；队列语义在真实 2.8.19 上用 RESP 协议实测通过（FIFO 顺序、中文 payload 往返、空队列返回 null、启动恢复搬回、多 worker 处理中队列互不干扰）。⏳ 200 msg/s 无堆积、杀消费者再启动不丢消息需在 IDE 运行环境确认。
 
 ### 迭代 3：去重与 `report_time` 统一（已完成，DDL 已执行）
 
@@ -143,7 +146,7 @@
   - 限流：同设备同类型告警 5 分钟冷却窗口（内存态，重启重置），窗口内只发第一条 —— 摔倒状态持续时每条新采样都会产生新告警，没有冷却会连打几十条短信。
   - 重试：单条最多 3 次、间隔 1 秒；全部失败只记 error 日志，不影响告警落库与采集主链路。
   - 设备不存在 / 未绑定监护人电话 / 冷却期内：不发，只记日志。
-- ⚠️ 当前是**同步发送**：Mock 不耗时；接入真实厂商（HTTP 数百毫秒，叠加重试）后必须改由迭代 2 的消息队列异步消费，不能继续占用采集线程。
+- ⚠️ 当前是**同步发送**：Mock 不耗时；接入真实厂商（HTTP 数百毫秒，叠加重试）后会占住消费者线程（迭代 2 之后已经不在 MQTT 回调线程上），届时应再拆一层异步（独立线程池或第二个队列）。
 - 环境确认：演示设备 `862323084243065`（张三）已绑定监护人 `13682910008`，Mock 日志可直接验证。
 - 未做（原计划项）：未确认自动升级。
 - → 验证：`POST /api/sensor/report` 灌一条 `fallStatus=1`，日志出现 `[短信-模拟] 发送至 13682910008 ...`。
@@ -253,10 +256,11 @@
 
 | 项 | 状态 | 说明 |
 | --- | --- | --- |
-| Redis 版本 | **阻塞中** | 实例为 2.8.19，不支持 Stream，迭代 2 需先升级容器 |
+| Redis 版本 | ✅ 已绕开 | 实例 2.8.19 不支持 Stream，迭代 2 改用 List 可靠队列（2026-09-16 定案），无需升级容器；代价是没有消费组与 pending 观测 |
 | OneNET MQTT EOF | **待确认** | TCP 可达但 broker 未回 CONNACK，需在正常网络下复现判断是网络干扰还是凭据/产品配置问题 |
 | 运行期回归 | 部分完成 | 沙箱无法启动 NIO 服务；迭代 5 的告警链路已在运行环境产生真实记录（`t_alarm_record` 内已有 FALL / HEART_RATE 记录），接口与前端仍建议人工过一遍 |
 | 小时表回填 | 待执行 | 迭代 9 需重启后端才生效（启动即跑 `rebuild(2)`）；要补更早历史则调 `POST /api/health-stat/rebuild?days=7`。2026-09-16 实测库内 `t_health_hourly_stat` 仍为 0 行、日表仅今天 1 行 |
+| 队列压测 | 待执行 | 迭代 2 的 200 msg/s 无堆积、杀消费者重启不丢消息要在 IDE 运行环境验证；积压用 `LLEN smartcane:sensor:queue` 观察 |
 | 唯一索引未建 | ✅ 已执行 | `docs/sql/iteration3_dedup.sql` 已于 2026-09-16 在库上执行，重复行 958 → 452 |
 | 告警判定未验证 | 待执行 | 迭代 5 的判定需在 IDE 启动后灌入模拟数据，确认告警生成与状态流转 |
 | 短信签名与模板 | 待申请 | 未就绪前仅 MockSmsSender |
