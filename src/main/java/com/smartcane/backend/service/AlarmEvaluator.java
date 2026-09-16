@@ -58,6 +58,9 @@ public class AlarmEvaluator {
     @Autowired
     private AlarmRecordMapper alarmRecordMapper;
 
+    @Autowired
+    private SmsNotifier smsNotifier;
+
     /**
      * 判定一条采样数据并写入命中的告警记录。
      * 心率为 0、血氧为 0 视为「未佩戴/无效读数」，不判定为异常，避免夜间误告警。
@@ -95,8 +98,21 @@ public class AlarmEvaluator {
             log.info("[告警] 设备 {} 触发 {} 告警 - 采样时间: {}, 判定值: {}",
                     data.getDeviceSn(), alarmType, data.getReportTime(), alarmValue);
         } catch (DuplicateKeyException e) {
-            // 同一采样的同类告警已存在（双通道重复上报），忽略即可
+            // 同一采样的同类告警已存在（双通道重复上报），忽略即可，也不再重复通知
             log.debug("[告警] 设备 {} 采样 {} 的 {} 告警已存在，忽略", data.getDeviceSn(), data.getReportTime(), alarmType);
+            return;
+        }
+        notifySms(record);
+    }
+
+    /**
+     * 短信通知失败不能影响已经落库的告警，因此单独兜住异常。
+     */
+    private void notifySms(AlarmRecord record) {
+        try {
+            smsNotifier.notify(record);
+        } catch (Exception e) {
+            log.error("[短信] 设备 {} 的 {} 告警通知异常", record.getDeviceSn(), record.getAlarmType(), e);
         }
     }
 }
