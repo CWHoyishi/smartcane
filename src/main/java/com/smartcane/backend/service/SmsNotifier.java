@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 告警短信通知：把告警记录翻成短信发给监护人。
  *
  * 两道兜底，避免反复打扰家属：
- * 1) 同设备同类型告警有冷却窗口，窗口内只发第一条（老人跌倒后，心率/血氧往往也会跟着报异常）；
+ * 1) 同设备同类型告警有冷却窗口，窗口内只发第一条（摔倒状态持续时，每条新采样都会产生新告警）；
  * 2) 单条短信最多重试若干次，全部失败只记错误日志。
  *
  * 通知是同步动作：MockSmsSender 不耗时，接入真实厂商（HTTP 调用数百毫秒）后
@@ -96,17 +96,11 @@ public class SmsNotifier {
     }
 
     private String describeAlarm(AlarmRecord record) {
-        String type = record.getAlarmType();
-        if (AlarmEvaluator.TYPE_FALL.equals(type)) {
+        if (AlarmEvaluator.TYPE_FALL.equals(record.getAlarmType())) {
             return "检测到跌倒";
         }
-        if (AlarmEvaluator.TYPE_HEART_RATE.equals(type)) {
-            return "心率异常（" + record.getAlarmValue() + "）";
-        }
-        if (AlarmEvaluator.TYPE_BLOOD_OXYGEN.equals(type)) {
-            return "血氧异常（" + record.getAlarmValue() + "）";
-        }
-        return "触发告警（" + type + "）";
+        // 现在只有摔倒会告警，这里是历史遗留类型（心率/血氧）的兜底
+        return "触发告警（" + record.getAlarmType() + "）";
     }
 
     private boolean isCoolingDown(AlarmRecord record) {

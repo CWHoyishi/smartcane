@@ -15,7 +15,8 @@ import org.springframework.util.StringUtils;
  *
  * 由 SensorDataWriter 在采样落库成功之后调用，因此同一条采样只判定一次；
  * t_alarm_record 上的唯一键 (device_sn, alarm_type, report_time) 是第二道保险。
- * 阈值以常量固化，现场要调只改这里，不额外引入配置项。
+ * 当前只对摔倒告警：心率/血氧容易受佩戴状态影响（取下拐杖就可能读到 0 或异常值），
+ * 误报代价高，因此不参与判定，只在采样表中留档。以后要放开，在 evaluate() 里加分支即可。
  */
 @Component
 public class AlarmEvaluator {
@@ -24,15 +25,6 @@ public class AlarmEvaluator {
 
     /** 告警类型：摔倒 */
     public static final String TYPE_FALL = "FALL";
-
-    /** 告警类型：心率异常 */
-    public static final String TYPE_HEART_RATE = "HEART_RATE";
-
-    /** 告警类型：血氧异常 */
-    public static final String TYPE_BLOOD_OXYGEN = "BLOOD_OXYGEN";
-
-    /** 告警级别：2重要 */
-    public static final int LEVEL_IMPORTANT = 2;
 
     /** 告警级别：3紧急 */
     public static final int LEVEL_URGENT = 3;
@@ -46,15 +38,6 @@ public class AlarmEvaluator {
     /** 处理状态：2误报 */
     public static final int STATUS_FALSE = 2;
 
-    /** 心率下限（次/分钟），低于此值告警 */
-    private static final int HEART_RATE_MIN = 50;
-
-    /** 心率上限（次/分钟），高于此值告警 */
-    private static final int HEART_RATE_MAX = 120;
-
-    /** 血氧下限（%），低于此值告警 */
-    private static final int BLOOD_OXYGEN_MIN = 90;
-
     @Autowired
     private AlarmRecordMapper alarmRecordMapper;
 
@@ -63,25 +46,14 @@ public class AlarmEvaluator {
 
     /**
      * 判定一条采样数据并写入命中的告警记录。
-     * 心率为 0、血氧为 0 视为「未佩戴/无效读数」，不判定为异常，避免夜间误告警。
+     * 只判摔倒：fall_status = 1 时产生一条紧急告警，心率/血氧不参与判定。
      */
     public void evaluate(CrutchSensorData data) {
         if (data == null || !StringUtils.hasText(data.getDeviceSn()) || data.getReportTime() == null) {
             return;
         }
-
         if (Integer.valueOf(1).equals(data.getFallStatus())) {
             save(data, TYPE_FALL, LEVEL_URGENT, "fallStatus=1");
-        }
-
-        Integer heartRate = data.getHeartRate();
-        if (heartRate != null && heartRate > 0 && (heartRate < HEART_RATE_MIN || heartRate > HEART_RATE_MAX)) {
-            save(data, TYPE_HEART_RATE, LEVEL_IMPORTANT, "heartRate=" + heartRate);
-        }
-
-        Integer bloodOxygen = data.getBloodOxygen();
-        if (bloodOxygen != null && bloodOxygen > 0 && bloodOxygen < BLOOD_OXYGEN_MIN) {
-            save(data, TYPE_BLOOD_OXYGEN, LEVEL_IMPORTANT, "bloodOxygen=" + bloodOxygen);
         }
     }
 

@@ -29,7 +29,7 @@ public class AlarmRecord {
     @Schema(description = "关联设备序列号")
     private String deviceSn;
 
-    @Schema(description = "告警类型：FALL摔倒 / HEART_RATE心率异常 / BLOOD_OXYGEN血氧异常")
+    @Schema(description = "告警类型：FALL摔倒（历史数据中可能还有已停用的 HEART_RATE / BLOOD_OXYGEN）")
     private String alarmType;
 
     @Schema(description = "告警级别：2重要 3紧急")
