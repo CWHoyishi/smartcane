@@ -9,7 +9,6 @@ import com.smartcane.backend.config.onenet.OneNetTokenUtil;
 import com.smartcane.backend.entity.po.CrutchDevice;
 import com.smartcane.backend.entity.po.CrutchSensorData;
 import com.smartcane.backend.mapper.CrutchDeviceMapper;
-import com.smartcane.backend.mapper.CrutchSensorDataMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
@@ -61,7 +61,7 @@ public class OneNetApiService {
     private CrutchDeviceMapper deviceMapper;
 
     @Autowired
-    private CrutchSensorDataMapper sensorDataMapper;
+    private SensorDataWriter sensorDataWriter;
 
     /** API Token 有效期（秒） */
     private static final long TOKEN_TTL_SECONDS = 3600L;
@@ -103,11 +103,13 @@ public class OneNetApiService {
                     ensureDeviceExists(deviceName);
                     CrutchSensorData data = buildSensorData(deviceName, result.props);
                     if (data != null) {
-                        sensorDataMapper.insert(data);
-                        log.info("[API拉取] 入库成功! 设备: {}, 心率: {}, 血氧: {}, 纬度: {}, 经度: {}, 摔倒: {}",
-                                deviceName,
-                                data.getHeartRate(), data.getBloodOxygen(),
-                                data.getLat(), data.getLon(), data.getFallStatus());
+                        // 同一条采样可能已由 MQTT 通道写入，命中唯一键时按重复忽略，本次拉取仍算成功
+                        if (sensorDataWriter.saveIgnoringDuplicate(data)) {
+                            log.info("[API拉取] 入库成功! 设备: {}, 心率: {}, 血氧: {}, 纬度: {}, 经度: {}, 摔倒: {}",
+                                    deviceName,
+                                    data.getHeartRate(), data.getBloodOxygen(),
+                                    data.getLat(), data.getLon(), data.getFallStatus());
+                        }
                         return true;
                     } else {
                         log.warn("[API拉取] 响应解析成功但无法组装传感器数据，字段: {}", result.props.keySet());
@@ -493,9 +495,9 @@ public class OneNetApiService {
         if (latestTs > 0) {
             // 判断是秒还是毫秒
             if (latestTs < 10000000000L) latestTs *= 1000;
-            return LocalDateTime.ofInstant(Instant.ofEpochMilli(latestTs), ZoneId.systemDefault());
+            return LocalDateTime.ofInstant(Instant.ofEpochMilli(latestTs), ZoneId.systemDefault()).truncatedTo(ChronoUnit.SECONDS);
         }
-        return LocalDateTime.now();
+        return LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
     }
 
     // ==================== 工具方法 ====================

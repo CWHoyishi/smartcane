@@ -86,15 +86,19 @@
 - `ensureDeviceExists` 增加本地缓存，去掉每条消息一次 `selectOne`。
 - → 验证：200 msg/s 压测无堆积；杀掉消费者再启动不丢消息。
 
-### 迭代 3：去重与 `report_time` 统一（待做）
+### 迭代 3：去重与 `report_time` 统一（代码已完成，DDL 待执行）
 
-- 统一 MQTT 与 HTTP 两条通道的 `report_time` 取值口径。
-- 迁移步骤：先清理历史重复行，再加唯一索引 `uk_device_report(device_sn, report_time)`，写入改为 `INSERT IGNORE`。
-- → 验证：双通道并发写入后行数不再增长。
+- 新增 `SensorDataWriter`：两条采集通道共用的落库入口，命中唯一键时按「重复上报」忽略（不再当故障报警）。手工上报接口 `report()` 也统一走它。
+- `report_time` 口径统一：两条通道都优先取平台时间戳，并统一 `truncatedTo(SECONDS)` 截断到秒。
+  - 这是去重能生效的前提：`report_time` 是 `DATETIME(0)`，MySQL 会对小数秒做四舍五入，不截断就可能出现同一采样两个不同值。
+- 迁移脚本：`docs/sql/iteration3_dedup.sql`（查重复 → 删重复保留最小 id → 建唯一索引 `uk_device_report` → 验证）。
+- ⚠️ 应用侧改动与唯一索引必须一起上线，否则去重不生效（没有索引时不会产生冲突）。
+- → 验证：执行脚本后，双通道并发写入不再产生重复行。
 
-### 迭代 4：查询收敛（待做）
+### 迭代 4：查询收敛（已完成）
 
-- `listByDeviceSn` 补 `LIMIT`（与注释一致）；分页 `pageSize` 加上限校验。
+- `listByDeviceSn` 补 `LIMIT 100`（原先注释写「最近100条」，代码却没有任何限制）。
+- 分页参数加上限保护：`pageNum` 最小 1，`pageSize` 限制在 1~200（默认 10）。
 - → 验证：单次响应体小于 100 KB。
 
 ### 迭代 5：告警闭环（待做）
@@ -129,6 +133,7 @@
 | Redis 版本 | **阻塞中** | 实例为 2.8.19，不支持 Stream，迭代 2 需先升级容器 |
 | OneNET MQTT EOF | **待确认** | TCP 可达但 broker 未回 CONNACK，需在正常网络下复现判断是网络干扰还是凭据/产品配置问题 |
 | 运行期回归 | **待执行** | 沙箱无法启动 NIO 服务，需在 IDE 启动并验证接口与文档页 |
+| 唯一索引未建 | **待执行** | `docs/sql/iteration3_dedup.sql` 需在数据库执行，去重才生效 |
 | 短信签名与模板 | 待申请 | 未就绪前仅 MockSmsSender |
 | 敏感信息 | 已知风险 | `application.yml` 中 MySQL 密码与 OneNET accessKey 为明文，且已进入 git 历史 |
 | fastjson 1.2.83 | 待处理 | 存在已知反序列化风险，计划在迭代 3 之后替换为 Jackson 或 fastjson2 |

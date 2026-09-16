@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.smartcane.backend.entity.po.CrutchDevice;
 import com.smartcane.backend.entity.po.CrutchSensorData;
 import com.smartcane.backend.mapper.CrutchDeviceMapper;
-import com.smartcane.backend.mapper.CrutchSensorDataMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 
 @Service
 public class OneNetDataProcessor {
@@ -25,7 +25,7 @@ public class OneNetDataProcessor {
     private CrutchDeviceMapper deviceMapper;
 
     @Autowired
-    private CrutchSensorDataMapper sensorDataMapper;
+    private SensorDataWriter sensorDataWriter;
 
     /**
      * 处理 MQTT 推送的传感器数据
@@ -69,7 +69,9 @@ public class OneNetDataProcessor {
         }
 
         try {
-            sensorDataMapper.insert(sensorData);
+            if (!sensorDataWriter.saveIgnoringDuplicate(sensorData)) {
+                return;
+            }
             log.debug("[保存-成功] 传感器数据已写入数据库 - ID: {}, 设备: {}, 心率: {}, 血氧: {}, 位置: {}/{}, 摔倒: {}",
                     sensorData.getId(),
                     deviceSn,
@@ -268,11 +270,11 @@ public class OneNetDataProcessor {
                 if (at instanceof Number) {
                     long ts = ((Number) at).longValue();
                     if (ts < 10000000000L) ts *= 1000;
-                    return LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault());
+                    return LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault()).truncatedTo(ChronoUnit.SECONDS);
                 }
             }
         }
-        return LocalDateTime.now();
+        return LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
     }
 
     private void ensureDeviceExists(String deviceSn) {
