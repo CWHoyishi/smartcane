@@ -28,7 +28,7 @@
     </template>
 
     <div style="color: #909399; font-size: 13px; margin-bottom: 16px">
-      统计口径：平均心率/血氧取有效读数（0 视为未佩戴不计入），异常次数统计心率 &lt;50 或 &gt;120、血氧 &lt;90、摔倒；活动时长按相邻采样间隔 ≤5 分钟且位移 ≥10 米累计。
+      统计口径：平均心率/血氧取有效读数（0 视为未佩戴不计入），异常次数统计心率 &lt;50 或 &gt;120、血氧 &lt;90、摔倒；在线时长按相邻采样间隔 ≤5 分钟累计（起算门槛与设备离线判定一致）。
       数据由服务端定时预聚合（每 10 分钟重算今天与昨天），当前周期：{{ periodText }}
     </div>
 
@@ -62,7 +62,7 @@
       </el-card>
       <el-card shadow="hover">
         <div style="text-align: center">
-          <div style="font-size: 14px; color: #606266; margin-bottom: 8px">活动时长</div>
+          <div style="font-size: 14px; color: #606266; margin-bottom: 8px">在线时长</div>
           <div style="font-size: 32px; font-weight: bold; color: #67c23a">
             {{ current.activeMinutes ?? '--' }}
             <span style="font-size: 14px; font-weight: normal">分钟</span>
@@ -85,7 +85,7 @@
         <TrendChart :labels="labels" :values="abnormalCounts" color="#e6a23c" type="bar" />
       </el-card>
       <el-card shadow="never">
-        <div style="font-size: 14px; color: #606266; margin-bottom: 8px">活动时长趋势（分钟）</div>
+        <div style="font-size: 14px; color: #606266; margin-bottom: 8px">在线时长趋势（分钟）</div>
         <TrendChart :labels="labels" :values="activeMinutes" color="#67c23a" type="bar" />
       </el-card>
     </div>
@@ -102,7 +102,7 @@
       <el-table-column prop="fallCount" label="摔倒" width="90" />
       <el-table-column prop="heartRateAbnormalCount" label="心率异常" width="110" />
       <el-table-column prop="bloodOxygenAbnormalCount" label="血氧异常" width="110" />
-      <el-table-column prop="activeMinutes" label="活动时长(分钟)" />
+      <el-table-column prop="activeMinutes" label="在线时长(分钟)" />
     </el-table>
 
     <el-table v-else :data="rows" border size="small" style="margin-top: 16px">
@@ -120,7 +120,7 @@
       <el-table-column prop="fallCount" label="摔倒" width="90" />
       <el-table-column prop="heartRateAbnormalCount" label="心率异常" width="110" />
       <el-table-column prop="bloodOxygenAbnormalCount" label="血氧异常" width="110" />
-      <el-table-column prop="activeMinutes" label="活动时长(分钟)" />
+      <el-table-column prop="activeMinutes" label="在线时长(分钟)" />
     </el-table>
   </el-card>
 </template>

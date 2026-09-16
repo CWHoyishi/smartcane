@@ -30,6 +30,6 @@ public class DailyHealthStatVO {
     @Schema(description = "血氧异常次数")
     private Integer bloodOxygenAbnormalCount;
 
-    @Schema(description = "活动时长(分钟)")
+    @Schema(description = "在线时长(分钟)")
     private Integer activeMinutes;
 }

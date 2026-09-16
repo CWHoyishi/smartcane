@@ -57,7 +57,7 @@ public class HealthDailyStat {
     @Schema(description = "血氧异常次数（<90）")
     private Integer bloodOxygenAbnormalCount;
 
-    @Schema(description = "活动时长（分钟）")
+    @Schema(description = "在线时长（分钟）")
     private Integer activeMinutes;
 
     @TableField(fill = FieldFill.INSERT)

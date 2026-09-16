@@ -1,7 +1,7 @@
 -- 迭代 8：健康统计（日/周报）预聚合表
 -- 目标库：smartcane（MySQL 8.0.19+，upsert 用到行别名语法）
 --
--- 为什么预聚合：日/周报要算「平均心率、平均血氧、异常次数、活动时长」，
+-- 为什么预聚合：日/周报要算「平均心率、平均血氧、异常次数、在线时长」，
 -- 实时聚合等于每次请求都扫一遍 t_crutch_sensor_data（单设备一天约 1440 行，多设备线性放大），
 -- 且明细只保留 48 小时，历史报表根本查不到。改成定时把结果写进这张表，接口只读表。
 --
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS t_health_daily_stat
     fall_count                  int      default 0     not null comment '摔倒次数（fall_status = 1 的采样数）',
     heart_rate_abnormal_count   int      default 0     not null comment '心率异常次数（<50 或 >120）',
     blood_oxygen_abnormal_count int      default 0     not null comment '血氧异常次数（<90）',
-    active_minutes              int      default 0     not null comment '活动时长（分钟）：相邻采样间隔 ≤5 分钟且位移 ≥10 米的时长累加',
+    active_minutes              int      default 0     not null comment '在线时长（分钟）：相邻采样间隔 ≤5 分钟即累加（2026-09-16 由「位移≥10米」改为在线口径）',
     create_time                 datetime default CURRENT_TIMESTAMP not null comment '创建时间',
     update_time                 datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '最近一次重算时间',
     constraint uk_device_date

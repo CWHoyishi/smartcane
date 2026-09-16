@@ -37,7 +37,7 @@
         </view>
       </view>
       <view class="summary-card">
-        <text class="summary-label">活动时长</text>
+        <text class="summary-label">在线时长</text>
         <view class="summary-line">
           <text class="summary-value value-ok">{{summary.activeMinutes}}</text>
           <text class="summary-unit">分钟</text>
@@ -88,9 +88,9 @@
       </view>
     </view>
 
-    <!-- 活动时长趋势 -->
+    <!-- 在线时长趋势 -->
     <view class="card">
-      <view class="card-title">活动时长趋势（分钟）</view>
+      <view class="card-title">在线时长趋势（分钟）</view>
       <view class="chart-plot">
         <view class="chart-bar bar-ok" wx:for="{{activeChart.bars}}" wx:key="id"
               style="left:{{item.left}}rpx;width:{{item.width}}rpx;height:{{item.height}}rpx"></view>
@@ -110,14 +110,14 @@
           <text class="row-metric">心率 {{item.avgHeartRate}}</text>
           <text class="row-metric">血氧 {{item.avgBloodOxygen}}</text>
           <text class="row-metric">异常 {{item.abnormalCount}}</text>
-          <text class="row-metric">活动 {{item.activeMinutes}} 分钟</text>
+          <text class="row-metric">在线 {{item.activeMinutes}} 分钟</text>
         </view>
       </view>
       <view class="empty-tip" wx:if="{{rows.length === 0}}"><text>暂无统计数据</text></view>
     </view>
 
     <view class="tip">
-      <text>统计口径：心率/血氧取有效读数（0 视为未佩戴），异常次数含心率 &lt;50 或 &gt;120、血氧 &lt;90、摔倒；活动时长按相邻采样间隔 ≤5 分钟且位移 ≥10 米累计。</text>
+      <text>统计口径：心率/血氧取有效读数（0 视为未佩戴），异常次数含心率 &lt;50 或 &gt;120、血氧 &lt;90、摔倒；在线时长按相邻采样间隔 ≤5 分钟累计（与设备离线判定同一门槛）。</text>
     </view>
   </block>
 </view>

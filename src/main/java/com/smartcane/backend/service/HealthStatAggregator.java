@@ -31,20 +31,19 @@ public class HealthStatAggregator {
     /** 统计口径：血氧低于此值计一次血氧异常 */
     private static final int BLOOD_OXYGEN_MIN = 90;
 
-    /** 判定「这段时间在活动」的最大采样间隔（秒）：中间断了就说明时间不可信，不计入 */
-    private static final long ACTIVE_GAP_SECONDS = 300;
-
-    /** 判定「这段时间在活动」的最小位移（米）：低于此值视为原地不动或 GPS 漂移 */
-    private static final double ACTIVE_DISTANCE_METERS = 10.0;
-
-    private static final double EARTH_RADIUS_METERS = 6371000d;
+    /**
+     * 在线判定窗口（秒）：相邻采样间隔不超过该值即认为这段时间设备在线。
+     * 与 CrutchDeviceServiceImpl.OFFLINE_THRESHOLD_SECONDS 取同一个值，
+     * 否则会出现「设备列表显示在线、健康统计却不算在线」这种自相矛盾。
+     */
+    private static final long ONLINE_GAP_SECONDS = 300;
 
     /**
      * 汇总一个小时。
      *
-     * @param samples 该小时内的采样，必须按 report_time 升序（活动时长依赖相邻点的先后顺序）
-     * @param carryIn 上一个小时的最后一条采样，可为 null。只用它的时间和位置来补上跨小时边界的
-     *                那一段活动时长，它的心率/血氧等指标不会重复计入本小时
+     * @param samples 该小时内的采样，必须按 report_time 升序（在线时长依赖相邻点的先后顺序）
+     * @param carryIn 上一个小时的最后一条采样，可为 null。只用它的时间补上跨小时边界的
+     *                那一段在线时长，它的心率/血氧等指标不会重复计入本小时
      */
     public HealthHourlyStat aggregateHour(String deviceSn, LocalDateTime statHour,
                                           List<CrutchSensorData> samples, CrutchSensorData carryIn) {
@@ -55,7 +54,7 @@ public class HealthStatAggregator {
         int fallCount = 0;
         int heartRateAbnormalCount = 0;
         int bloodOxygenAbnormalCount = 0;
-        long activeSeconds = 0;
+        long onlineSeconds = 0;
         CrutchSensorData previous = carryIn;
 
         for (CrutchSensorData sample : samples) {
@@ -79,7 +78,7 @@ public class HealthStatAggregator {
             if (Integer.valueOf(1).equals(sample.getFallStatus())) {
                 fallCount++;
             }
-            activeSeconds += activeSecondsBetween(previous, sample);
+            onlineSeconds += onlineSecondsBetween(previous, sample);
             previous = sample;
         }
 
@@ -94,7 +93,7 @@ public class HealthStatAggregator {
         stat.setFallCount(fallCount);
         stat.setHeartRateAbnormalCount(heartRateAbnormalCount);
         stat.setBloodOxygenAbnormalCount(bloodOxygenAbnormalCount);
-        stat.setActiveMinutes((int) (activeSeconds / 60));
+        stat.setActiveMinutes((int) (onlineSeconds / 60));
         return stat;
     }
 
@@ -141,32 +140,17 @@ public class HealthStatAggregator {
     }
 
     /**
-     * 相邻两次采样之间是否算「在活动」：间隔在可信范围内、且有实际位移，则整段间隔计入活动时长。
-     * 只看位移不看心率：老人静坐时心率也可能偏低，用位移判定更贴近「走动」这个语义。
+     * 相邻两次采样之间是否算「在线」：间隔没超出在线窗口，就把整段间隔计入在线时长。
+     * 只比时间不比位移：采样能按时上来就说明设备在工作，老人坐着不动、一直在原地也算在线。
      */
-    private long activeSecondsBetween(CrutchSensorData previous, CrutchSensorData current) {
+    private long onlineSecondsBetween(CrutchSensorData previous, CrutchSensorData current) {
         if (previous == null || previous.getReportTime() == null || current.getReportTime() == null) {
             return 0;
         }
-        if (previous.getLat() == null || previous.getLon() == null
-                || current.getLat() == null || current.getLon() == null) {
-            return 0;
-        }
         long gapSeconds = Duration.between(previous.getReportTime(), current.getReportTime()).getSeconds();
-        if (gapSeconds <= 0 || gapSeconds > ACTIVE_GAP_SECONDS) {
+        if (gapSeconds <= 0 || gapSeconds > ONLINE_GAP_SECONDS) {
             return 0;
         }
-        double distance = distanceMeters(previous.getLat(), previous.getLon(), current.getLat(), current.getLon());
-        return distance >= ACTIVE_DISTANCE_METERS ? gapSeconds : 0;
-    }
-
-    /** Haversine 球面距离，单位米 */
-    private double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
-        double dLat = Math.toRadians(lat2 - lat1);
-        double dLon = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1d, Math.sqrt(a)));
+        return gapSeconds;
     }
 }

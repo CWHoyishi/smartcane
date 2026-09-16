@@ -15,7 +15,7 @@ public interface CrutchSensorDataMapper extends BaseMapper<CrutchSensorData> {
 
     /**
      * 查询某设备在 [start, end) 内的采样，按上报时间升序（健康统计聚合用）。
-     * 必须升序：活动时长依赖相邻采样点的先后顺序。
+     * 必须升序：在线时长依赖相邻采样点的先后顺序。
      */
     @Select("SELECT id, device_sn, heart_rate, blood_oxygen, lat, lon, fall_status, report_time, create_time " +
             "FROM t_crutch_sensor_data " +
@@ -34,7 +34,7 @@ public interface CrutchSensorDataMapper extends BaseMapper<CrutchSensorData> {
 
     /**
      * 查询某设备在 time 之前的最后一条采样（没有则返回 null）。
-     * 小时统计用它把跨小时边界的活动时长接上，否则每小时都会丢掉边界那一段。
+     * 小时统计用它把跨小时边界的在线时长接上，否则每小时都会丢掉边界那一段。
      */
     @Select("SELECT id, device_sn, heart_rate, blood_oxygen, lat, lon, fall_status, report_time, create_time " +
             "FROM t_crutch_sensor_data " +
