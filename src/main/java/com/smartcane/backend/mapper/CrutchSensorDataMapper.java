@@ -7,8 +7,23 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Mapper
 public interface CrutchSensorDataMapper extends BaseMapper<CrutchSensorData> {
+
+    /**
+     * 查询某设备在 [start, end) 内的采样，按上报时间升序（健康统计聚合用）。
+     * 必须升序：活动时长依赖相邻采样点的先后顺序。
+     */
+    @Select("SELECT id, device_sn, heart_rate, blood_oxygen, lat, lon, fall_status, report_time, create_time " +
+            "FROM t_crutch_sensor_data " +
+            "WHERE device_sn = #{deviceSn} AND report_time >= #{start} AND report_time < #{end} " +
+            "ORDER BY report_time")
+    List<CrutchSensorData> selectByDeviceSnAndTimeRange(@Param("deviceSn") String deviceSn,
+                                                        @Param("start") LocalDateTime start,
+                                                        @Param("end") LocalDateTime end);
 
     @Select("SELECT device_sn, heart_rate, blood_oxygen, lat, lon, fall_status, report_time " +
             "FROM t_crutch_sensor_data " +

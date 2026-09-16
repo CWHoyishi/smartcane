@@ -170,6 +170,42 @@
 
 - → 验证：`GET /api/device/list` 的 `deviceStatus`/`lastReportTime` 与实际上报一致；删除有数据的设备被拒，带 `force=true` 才成功。
 
+### 迭代 8：健康统计（日/周报，已完成）
+
+**预聚合表** `t_health_daily_stat`（脚本 `docs/sql/iteration8_health_stat.sql`，✅ 2026-09-16 已在库上执行）
+
+- 唯一键 `uk_device_date (device_sn, stat_date)`；查询口径固定是「单设备 + 日期区间」，不需要额外索引。
+- 心率/血氧存 `sum + count` 而不是平均值：周报要按样本数加权（`SUM(sum)/SUM(count)`），存均值会丢权重，天数不等时算错。
+- 写入走 `ON DUPLICATE KEY UPDATE`（MySQL 8.0.19+ 行别名语法），重算幂等；实测重复写入是覆盖更新而不是报错。
+
+**聚合口径**（`HealthStatAggregator`，纯计算、不碰数据库）
+
+- 平均值只统计有效读数：心率/血氧为 `0` 视为未佩戴，既不计入均值也不计为异常。
+- 异常次数：心率 `<50` 或 `>120`、血氧 `<90`、摔倒（`fall_status = 1`）。**只是统计，与告警无关**（告警目前只判摔倒）。
+- 活动时长：相邻采样间隔 ≤5 分钟且球面位移 ≥10 米时，该段间隔计入活动；没有步数/加速度传感器，只能用位移近似。
+- 实测：13 条构造采样 → 心率均值 62.8、心率异常 4、血氧异常 4、摔倒 1、活动 6 分钟，与手算一致。
+
+**调度**（`HealthStatScheduler`）
+
+- 每 10 分钟重算「今天 + 昨天」，应用启动后立即执行一次。只在凌晨跑一次的话，前端一整天都看不到当天数据。
+- 没有采样的日期不落行，接口读取时补空行，保证趋势图横轴连续。
+- 采样明细只保留 48 小时，所以报表必须靠这张表长期留存，不能依赖明细回查。
+
+**接口** `/api/health-stat`
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/daily/{deviceSn}?days=7` | 日统计，上限 90 天，缺数据日期补空行 |
+| GET | `/weekly/{deviceSn}?weeks=4` | 周报，自然周（周一起），上限 12 周 |
+| POST | `/rebuild?days=7` | 手动重算，用于回填历史或演示时立即出数 |
+
+**前端**
+
+- 新增「健康统计」页 `HealthStatView.vue`：日报/周报切换、4 个概览指标、4 张趋势图（平均心率、平均血氧、异常次数、活动时长）、明细表格。
+- 图表用自写的 SVG 组件 `TrendChart.vue`（折线/柱状两种），不引入 ECharts：内网演示不值得为几张图引入 1 MB 依赖，需要更丰富的交互时再替换。
+
+
+
 ## 6. 数据库现状与约束（依据现有建表 SQL）
 
 - `t_crutch_sensor_data` 已有索引：`idx_dev_report (device_sn, report_time)`、`idx_fall_status (fall_status)`。
@@ -177,6 +213,7 @@
 - 外键：`t_crutch_sensor_data.device_sn` → `t_crutch_device.device_sn`，**ON DELETE CASCADE**。
 - 唯一键 `uk_device_report (device_sn, report_time)` 已由迭代 3 建立；`idx_dev_report` 列相同，已冗余（可选删除）。
 - 新增 `t_alarm_record`（迭代 5）：唯一键 `uk_device_alarm (device_sn, alarm_type, report_time)`、索引 `idx_alarm_status_time (status, report_time)`，外键同样 `ON DELETE CASCADE`。
+- 新增 `t_health_daily_stat`（迭代 8）：唯一键 `uk_device_date (device_sn, stat_date)`，无额外索引（查询口径是「单设备 + 日期区间」）。
 
 ## 7. 风险与待办
 
@@ -188,5 +225,6 @@
 | 唯一索引未建 | ✅ 已执行 | `docs/sql/iteration3_dedup.sql` 已于 2026-09-16 在库上执行，重复行 958 → 452 |
 | 告警判定未验证 | 待执行 | 迭代 5 的判定需在 IDE 启动后灌入模拟数据，确认告警生成与状态流转 |
 | 短信签名与模板 | 待申请 | 未就绪前仅 MockSmsSender |
+| 活动时长口径 | **待确认** | 无步数/加速度传感器，暂用 GPS 位移（间隔 ≤5 分钟且位移 ≥10 米）近似；若改成「设备在线时长」，只改 `HealthStatAggregator` 一个方法 |
 | 敏感信息 | 已知风险 | `application.yml` 中 MySQL 密码与 OneNET accessKey 为明文，且已进入 git 历史 |
 | fastjson 1.2.83 | 待处理 | 存在已知反序列化风险，计划在迭代 3 之后替换为 Jackson 或 fastjson2 |

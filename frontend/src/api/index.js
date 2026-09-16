@@ -43,6 +43,32 @@ export const deviceApi = {
   }
 }
 
+export const healthStatApi = {
+  daily(deviceSn, days = 7) {
+    return request({
+      url: `/health-stat/daily/${deviceSn}`,
+      method: 'get',
+      params: { days }
+    })
+  },
+  weekly(deviceSn, weeks = 4) {
+    return request({
+      url: `/health-stat/weekly/${deviceSn}`,
+      method: 'get',
+      params: { weeks }
+    })
+  },
+  // 重算要按天扫采样明细，比普通查询慢，单独放宽超时
+  rebuild(days = 7) {
+    return request({
+      url: '/health-stat/rebuild',
+      method: 'post',
+      params: { days },
+      timeout: 60000
+    })
+  }
+}
+
 export const sensorApi = {
   page(data) {
     return request({
