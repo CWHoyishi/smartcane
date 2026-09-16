@@ -31,4 +31,14 @@ public interface CrutchSensorDataMapper extends BaseMapper<CrutchSensorData> {
             "ORDER BY report_time DESC " +
             "LIMIT 1")
     LatestSensorDataVO selectLatestByDeviceSn(@Param("deviceSn") String deviceSn);
+
+    /**
+     * 查询某设备在 time 之前的最后一条采样（没有则返回 null）。
+     * 小时统计用它把跨小时边界的活动时长接上，否则每小时都会丢掉边界那一段。
+     */
+    @Select("SELECT id, device_sn, heart_rate, blood_oxygen, lat, lon, fall_status, report_time, create_time " +
+            "FROM t_crutch_sensor_data " +
+            "WHERE device_sn = #{deviceSn} AND report_time < #{time} " +
+            "ORDER BY report_time DESC LIMIT 1")
+    CrutchSensorData selectLastBefore(@Param("deviceSn") String deviceSn, @Param("time") LocalDateTime time);
 }

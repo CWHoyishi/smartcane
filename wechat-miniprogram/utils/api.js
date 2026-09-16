@@ -45,6 +45,12 @@ module.exports = {
     getBySn: (sn) => request({ url: '/device/sn/' + sn })
   },
 
+  /** 健康统计接口（日/周报，服务端定时预聚合） */
+  healthStat: {
+    daily: (deviceSn, days) => request({ url: '/health-stat/daily/' + deviceSn, data: { days } }),
+    weekly: (deviceSn, weeks) => request({ url: '/health-stat/weekly/' + deviceSn, data: { weeks } })
+  },
+
   /** 传感器数据接口 */
   sensor: {
     getLatest: (deviceSn) => request({ url: '/sensor/latest/' + deviceSn }),

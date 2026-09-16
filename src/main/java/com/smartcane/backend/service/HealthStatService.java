@@ -23,8 +23,9 @@ public interface HealthStatService {
     Result<List<WeeklyHealthStatVO>> listWeekly(String deviceSn, Integer weeks);
 
     /**
-     * 重算最近 days 天（含今天）的日统计，返回写入行数。
-     * 幂等（按 (device_sn, stat_date) upsert），可用于回填历史或演示时立即出数。
+     * 重算最近 days 天（含今天）的统计，返回写入行数：
+     * 先把原始明细刷成小时统计，再由小时统计求和出日统计（顺序不可颠倒）。
+     * 幂等（按唯一键 upsert），可用于回填历史或演示时立即出数。
      */
     Result<Integer> rebuild(Integer days);
 }

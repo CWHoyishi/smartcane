@@ -1,0 +1,123 @@
+<!-- 健康统计（日/周报，数据来自服务端预聚合表） -->
+<view class="container">
+  <!-- 切换栏 -->
+  <view class="top-bar">
+    <view class="mode-switch">
+      <view class="mode-item {{mode === 'daily' ? 'mode-active' : ''}}" data-mode="daily" bindtap="onModeChange">日报</view>
+      <view class="mode-item {{mode === 'weekly' ? 'mode-active' : ''}}" data-mode="weekly" bindtap="onModeChange">周报</view>
+    </view>
+    <text class="range-text">{{rangeText}}</text>
+  </view>
+
+  <view class="loading-tip" wx:if="{{loading}}"><text>正在加载统计数据...</text></view>
+  <view class="error-tip" wx:if="{{errorMsg && !loading}}"><text>{{errorMsg}}</text></view>
+
+  <block wx:if="{{!loading && !errorMsg}}">
+    <!-- 概览 -->
+    <view class="summary-grid">
+      <view class="summary-card">
+        <text class="summary-label">平均心率</text>
+        <view class="summary-line">
+          <text class="summary-value value-hr">{{summary.avgHeartRate}}</text>
+          <text class="summary-unit">次/分</text>
+        </view>
+      </view>
+      <view class="summary-card">
+        <text class="summary-label">平均血氧</text>
+        <view class="summary-line">
+          <text class="summary-value value-spo2">{{summary.avgBloodOxygen}}</text>
+          <text class="summary-unit">%</text>
+        </view>
+      </view>
+      <view class="summary-card">
+        <text class="summary-label">异常次数</text>
+        <view class="summary-line">
+          <text class="summary-value value-warn">{{summary.abnormalCount}}</text>
+          <text class="summary-unit">次</text>
+        </view>
+      </view>
+      <view class="summary-card">
+        <text class="summary-label">活动时长</text>
+        <view class="summary-line">
+          <text class="summary-value value-ok">{{summary.activeMinutes}}</text>
+          <text class="summary-unit">分钟</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 平均心率趋势 -->
+    <view class="card">
+      <view class="card-title">平均心率趋势</view>
+      <view class="chart-plot">
+        <view class="chart-line" wx:for="{{heartRateChart.lines}}" wx:key="id"
+              style="left:{{item.left}}rpx;top:{{item.top}}rpx;width:{{item.width}}rpx;transform:rotate({{item.angle}}deg)"></view>
+        <view class="chart-dot dot-hr" wx:for="{{heartRateChart.dots}}" wx:key="id"
+              style="left:{{item.left}}rpx;top:{{item.top}}rpx"></view>
+        <view class="chart-empty" wx:if="{{heartRateChart.empty}}"><text>暂无数据</text></view>
+      </view>
+      <view class="chart-axis">
+        <text wx:for="{{chartLabels}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 平均血氧趋势 -->
+    <view class="card">
+      <view class="card-title">平均血氧趋势</view>
+      <view class="chart-plot">
+        <view class="chart-line line-spo2" wx:for="{{bloodOxygenChart.lines}}" wx:key="id"
+              style="left:{{item.left}}rpx;top:{{item.top}}rpx;width:{{item.width}}rpx;transform:rotate({{item.angle}}deg)"></view>
+        <view class="chart-dot dot-spo2" wx:for="{{bloodOxygenChart.dots}}" wx:key="id"
+              style="left:{{item.left}}rpx;top:{{item.top}}rpx"></view>
+        <view class="chart-empty" wx:if="{{bloodOxygenChart.empty}}"><text>暂无数据</text></view>
+      </view>
+      <view class="chart-axis">
+        <text wx:for="{{chartLabels}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 异常次数趋势 -->
+    <view class="card">
+      <view class="card-title">异常次数趋势</view>
+      <view class="chart-plot">
+        <view class="chart-bar bar-warn" wx:for="{{abnormalChart.bars}}" wx:key="id"
+              style="left:{{item.left}}rpx;width:{{item.width}}rpx;height:{{item.height}}rpx"></view>
+        <view class="chart-empty" wx:if="{{abnormalChart.empty}}"><text>暂无数据</text></view>
+      </view>
+      <view class="chart-axis">
+        <text wx:for="{{chartLabels}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 活动时长趋势 -->
+    <view class="card">
+      <view class="card-title">活动时长趋势（分钟）</view>
+      <view class="chart-plot">
+        <view class="chart-bar bar-ok" wx:for="{{activeChart.bars}}" wx:key="id"
+              style="left:{{item.left}}rpx;width:{{item.width}}rpx;height:{{item.height}}rpx"></view>
+        <view class="chart-empty" wx:if="{{activeChart.empty}}"><text>暂无数据</text></view>
+      </view>
+      <view class="chart-axis">
+        <text wx:for="{{chartLabels}}" wx:key="*this">{{item}}</text>
+      </view>
+    </view>
+
+    <!-- 明细 -->
+    <view class="card">
+      <view class="card-title">明细</view>
+      <view class="row" wx:for="{{rows}}" wx:key="id">
+        <text class="row-period">{{item.period}}</text>
+        <view class="row-metrics">
+          <text class="row-metric">心率 {{item.avgHeartRate}}</text>
+          <text class="row-metric">血氧 {{item.avgBloodOxygen}}</text>
+          <text class="row-metric">异常 {{item.abnormalCount}}</text>
+          <text class="row-metric">活动 {{item.activeMinutes}} 分钟</text>
+        </view>
+      </view>
+      <view class="empty-tip" wx:if="{{rows.length === 0}}"><text>暂无统计数据</text></view>
+    </view>
+
+    <view class="tip">
+      <text>统计口径：心率/血氧取有效读数（0 视为未佩戴），异常次数含心率 &lt;50 或 &gt;120、血氧 &lt;90、摔倒；活动时长按相邻采样间隔 ≤5 分钟且位移 ≥10 米累计。</text>
+    </view>
+  </block>
+</view>

@@ -189,7 +189,7 @@
 
 - 每 10 分钟重算「今天 + 昨天」，应用启动后立即执行一次。只在凌晨跑一次的话，前端一整天都看不到当天数据。
 - 没有采样的日期不落行，接口读取时补空行，保证趋势图横轴连续。
-- 采样明细只保留 48 小时，所以报表必须靠这张表长期留存，不能依赖明细回查。
+- 采样明细只保留 7 天（迭代 9 起），报表靠聚合表长期留存，不能依赖明细回查；日统计的数据源在迭代 9 改为小时表。
 
 **接口** `/api/health-stat`
 
@@ -204,6 +204,36 @@
 - 新增「健康统计」页 `HealthStatView.vue`：日报/周报切换、4 个概览指标、4 张趋势图（平均心率、平均血氧、异常次数、活动时长）、明细表格。
 - 图表用自写的 SVG 组件 `TrendChart.vue`（折线/柱状两种），不引入 ECharts：内网演示不值得为几张图引入 1 MB 依赖，需要更丰富的交互时再替换。
 
+### 迭代 9：数据分层（明细 7 天 + 小时聚合表长期保留，已完成）
+
+**分层结构**
+
+| 层 | 表 | 保留期 | 说明 |
+| --- | --- | --- | --- |
+| 原始明细 | `t_crutch_sensor_data` | 7 天 | 明细查询 + 给小时表供货 |
+| 小时统计 | `t_health_hourly_stat` | 长期 | 报表的持久底座，不设清理任务 |
+| 日统计 | `t_health_daily_stat` | 长期 | 由小时统计求和 |
+| 周报 | 不落表 | — | 读取时按自然周汇总日统计 |
+
+- 建表脚本 `docs/sql/iteration9_tiering.sql`（✅ 2026-09-16 已执行）：唯一键 `uk_device_hour (device_sn, stat_hour)`，字段与日表一致（同样存 sum + count）。
+- 清理任务 `DataSyncScheduler.cleanExpiredSensorData`：保留期 48 小时 → 7 天（常量 `RAW_DATA_RETENTION_DAYS`），仍是每天凌晨 3 点执行。
+
+**聚合链路**（`HealthStatScheduler` 每 10 分钟调用一次）
+
+1. 明细 → 小时表：重算最近 48 小时（含当前小时）。
+2. 小时表 → 日表：重算最近 2 天，读的是小时表而不是明细。
+3. 两步顺序不可颠倒：日统计依赖小时表已刷新。
+
+- 小时表窗口取 48 小时而不是「当前小时」：重启后要能补出停机期间的小时；距明细 7 天保留期还有 5 天安全边际。
+- 跨小时的活动时长用 carry-in 补：聚合某小时时额外取「上一小时最后一条采样」，只用它的时间和位置补边界那一段，不重复计入指标。实测对照：带 carry-in = 1 分钟，不带 = 0。
+- 小时级活动时长按分钟取整（不足 1 分钟不计），多层嵌套最多带来 ≤1 分钟/小时的取整损失。
+
+**接口**：`POST /api/health-stat/rebuild?days=N` 现在先刷小时表再刷日表（上限 30 天），适合停机后一次性回填。
+
+**小程序**：新增「健康统计」tab（`wechat-miniprogram/pages/health/`）：日报/周报切换、4 个概览指标、4 张趋势图（平均心率、平均血氧、异常次数、活动时长）与明细列表。
+
+- 同样不引第三方图表库：折线用「旋转的细 view」拼线段，柱状用归一化高度，纯 WXSS 实现；横轴最多显示 5 个标签，缺数据的周期断开折线而不是连成假趋势。
+
 
 
 ## 6. 数据库现状与约束（依据现有建表 SQL）
@@ -214,6 +244,7 @@
 - 唯一键 `uk_device_report (device_sn, report_time)` 已由迭代 3 建立；`idx_dev_report` 列相同，已冗余（可选删除）。
 - 新增 `t_alarm_record`（迭代 5）：唯一键 `uk_device_alarm (device_sn, alarm_type, report_time)`、索引 `idx_alarm_status_time (status, report_time)`，外键同样 `ON DELETE CASCADE`。
 - 新增 `t_health_daily_stat`（迭代 8）：唯一键 `uk_device_date (device_sn, stat_date)`，无额外索引（查询口径是「单设备 + 日期区间」）。
+- 新增 `t_health_hourly_stat`（迭代 9）：唯一键 `uk_device_hour (device_sn, stat_hour)`，长期保留、无清理任务。
 
 ## 7. 风险与待办
 

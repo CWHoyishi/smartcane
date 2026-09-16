@@ -23,6 +23,9 @@ public class DataSyncScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(DataSyncScheduler.class);
 
+    /** 原始采样明细保留天数：更早的明细由小时聚合表长期承载 */
+    private static final int RAW_DATA_RETENTION_DAYS = 7;
+
     @Autowired
     private OneNetApiService apiService;
 
@@ -69,20 +72,24 @@ public class DataSyncScheduler {
     }
 
     /**
-     * 每天凌晨3点清理前天的传感器历史数据（保留最近48小时）
-     * 避免数据量过大导致数据库压力
+     * 每天凌晨 3 点清理过期传感器明细，原始数据保留 7 天。
+     *
+     * 数据分层：明细（t_crutch_sensor_data，7 天）→ 小时统计（t_health_hourly_stat，长期保留）
+     * → 日/周报（由小时统计求和）。报表都从小时表往上算，所以明细被清理不会让历史报表断档。
+     * 小时表的重算窗口只有 48 小时（HealthStatScheduler），与这里的 7 天保留期之间有 5 天安全边际：
+     * 只要应用在这 5 天内启动过一次，待聚合的小时就都被落库了。
      */
     @Scheduled(cron = "0 0 3 * * ?")
     public void cleanExpiredSensorData() {
         try {
-            // 删除 2 天前的数据（前天及更早）
-            LocalDateTime cutoff = LocalDateTime.now().minusDays(2);
+            LocalDateTime cutoff = LocalDateTime.now().minusDays(RAW_DATA_RETENTION_DAYS);
             QueryWrapper<CrutchSensorData> wrapper = new QueryWrapper<>();
             wrapper.lt("create_time", cutoff);
 
             int deleted = sensorDataMapper.delete(wrapper);
             if (deleted > 0) {
-                log.info("[数据清理] 已删除 {} 条前天之前的传感器数据（截止时间: {}）", deleted, cutoff);
+                log.info("[数据清理] 已删除 {} 条 {} 天前的传感器明细（截止时间: {}），小时/日统计不受影响",
+                        deleted, RAW_DATA_RETENTION_DAYS, cutoff);
             } else {
                 log.debug("[数据清理] 无需清理，无过期数据");
             }

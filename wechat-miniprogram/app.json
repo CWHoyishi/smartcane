@@ -2,6 +2,7 @@
   "pages": [
     "pages/monitor/index",
     "pages/history/index",
+    "pages/health/index",
     "pages/notification/index",
     "pages/device/index"
   ],
@@ -13,6 +14,7 @@
     "list": [
       { "pagePath": "pages/monitor/index", "text": "实时监测" },
       { "pagePath": "pages/history/index", "text": "历史数据" },
+      { "pagePath": "pages/health/index", "text": "健康统计" },
       { "pagePath": "pages/notification/index", "text": "消息通知" },
       { "pagePath": "pages/device/index", "text": "设备管理" }
     ]
