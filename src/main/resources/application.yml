@@ -90,3 +90,9 @@ onenet:
     deviceNames:
       - 862323084243065
     fetchIntervalMs: 60000
+# 内网演示：只暴露健康检查与指标，供压测取基线（/actuator/health、/actuator/metrics）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

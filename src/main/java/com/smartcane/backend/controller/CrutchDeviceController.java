@@ -49,9 +49,10 @@ public class CrutchDeviceController {
         return crutchDeviceService.update(dto);
     }
 
-    @Operation(summary = "删除设备")
+    @Operation(summary = "删除设备（设备存在历史数据时需显式传 force=true）")
     @DeleteMapping("/delete/{id}")
-    public Result<Void> delete(@PathVariable("id") Long id) {
-        return crutchDeviceService.delete(id);
+    public Result<Void> delete(@PathVariable("id") Long id,
+                               @RequestParam(value = "force", defaultValue = "false") boolean force) {
+        return crutchDeviceService.delete(id, force);
     }
 }

@@ -13,7 +13,9 @@ request.interceptors.response.use(
       return res
     } else {
       ElMessage.error(res.message || '请求失败')
-      return Promise.reject(new Error(res.message || '请求失败'))
+      const err = new Error(res.message || '请求失败')
+      err.code = res.code
+      return Promise.reject(err)
     }
   },
   error => {

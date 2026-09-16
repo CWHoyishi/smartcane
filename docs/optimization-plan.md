@@ -148,11 +148,28 @@
 - 未做（原计划项）：未确认自动升级。
 - → 验证：`POST /api/sensor/report` 灌一条 `fallStatus=1`，日志出现 `[短信-模拟] 发送至 13682910008 ...`。
 
-### 迭代 7：收尾（待做）
+### 迭代 7：收尾（已完成）
 
-- 设备删除保护：外键 `fk_crutch_dev` 为 `ON DELETE CASCADE`，当前 `deleteById` 会连带清空该设备全部历史数据，需增加确认或改为逻辑删除。
-- 离线判定：设备表无 `last_seen` 字段，用 `MAX(report_time)` 派生，避免改表。
-- 接入 Actuator 指标，为后续压测提供基线。
+**设备删除保护**
+
+- 默认拒绝删除：先统计该设备的采样与告警条数，存在历史数据时返回 `409` + 明确文案（例如「存在 464 条传感器数据、11 条告警记录，删除会一并清除」），只有显式传 `force=true` 才真正执行。
+- 前端 `DeviceView` 收到 409 后弹二次确认（红色「一并删除」），确认后才带 `force` 重删；取消则什么都不做。
+- 没有采用逻辑删除：`t_crutch_device.device_sn` 是唯一键，逻辑删除后同一序列号无法重新录入，反而更难收场。
+
+**离线判定**
+
+- 设备表没有 `last_seen` 字段，MQTT 掉线也没有回调，所以在线状态改为读时派生：`MAX(report_time)` 距今超过 300 秒即判离线（拉取间隔 60 秒，留 5 倍余量防抖）。
+- 新增 `CrutchDeviceMapper.selectLastSeen()`：一条 `GROUP BY device_sn` 查全量设备，避免 N+1；实测执行计划 `Using index for group-by`，走 `uk_device_report`。
+- `CrutchDeviceVO` 增加 `lastReportTime`；`deviceStatus` 语义变为派生值（设备表字段不再对外生效，`update` 仍会写库但不影响展示）。
+- 前端设备列表新增「最后上报」列，并移除表单里的「在线状态」开关（该值已不可人工设置）。
+
+**Actuator**
+
+- 引入 `spring-boot-starter-actuator`，只暴露 `health,info,metrics`：`/actuator/health`、`/actuator/metrics` 供压测取基线。
+
+**无 DDL 变更**：本迭代不改表结构。
+
+- → 验证：`GET /api/device/list` 的 `deviceStatus`/`lastReportTime` 与实际上报一致；删除有数据的设备被拒，带 `force=true` 才成功。
 
 ## 6. 数据库现状与约束（依据现有建表 SQL）
 
@@ -168,7 +185,7 @@
 | --- | --- | --- |
 | Redis 版本 | **阻塞中** | 实例为 2.8.19，不支持 Stream，迭代 2 需先升级容器 |
 | OneNET MQTT EOF | **待确认** | TCP 可达但 broker 未回 CONNACK，需在正常网络下复现判断是网络干扰还是凭据/产品配置问题 |
-| 运行期回归 | **待执行** | 沙箱无法启动 NIO 服务，需在 IDE 启动并验证接口与文档页 |
+| 运行期回归 | 部分完成 | 沙箱无法启动 NIO 服务；迭代 5 的告警链路已在运行环境产生真实记录（`t_alarm_record` 内已有 FALL / HEART_RATE 记录），接口与前端仍建议人工过一遍 |
 | 唯一索引未建 | ✅ 已执行 | `docs/sql/iteration3_dedup.sql` 已于 2026-09-16 在库上执行，重复行 958 → 452 |
 | 告警判定未验证 | 待执行 | 迭代 5 的判定需在 IDE 启动后灌入模拟数据，确认告警生成与状态流转 |
 | 短信签名与模板 | 待申请 | 未就绪前仅 MockSmsSender |

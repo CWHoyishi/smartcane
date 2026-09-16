@@ -33,10 +33,12 @@ export const deviceApi = {
       data
     })
   },
-  delete(id) {
+  // force=false 时后端会拒绝删除仍有历史采样/告警的设备
+  delete(id, force = false) {
     return request({
       url: `/device/delete/${id}`,
-      method: 'delete'
+      method: 'delete',
+      params: { force }
     })
   }
 }

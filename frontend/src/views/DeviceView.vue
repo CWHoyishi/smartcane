@@ -19,6 +19,7 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="lastReportTime" label="最后上报" width="180" />
       <el-table-column prop="createTime" label="录入时间" width="200" />
       <el-table-column label="操作" width="180">
         <template #default="{ row }">
@@ -41,13 +42,7 @@
         <el-form-item label="监护人电话">
           <el-input v-model="deviceForm.guardianPhone" />
         </el-form-item>
-        <el-form-item label="在线状态">
-          <el-switch
-            v-model="deviceForm.deviceStatus"
-            :active-value="1"
-            :inactive-value="0"
-          />
-        </el-form-item>
+
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -70,8 +65,7 @@ const deviceForm = ref({
   deviceSn: '',
   elderName: '',
   elderPhone: '',
-  guardianPhone: '',
-  deviceStatus: 1
+  guardianPhone: ''
 })
 
 const loadList = async () => {
@@ -90,8 +84,7 @@ const openDialog = (row = null) => {
       deviceSn: '',
       elderName: '',
       elderPhone: '',
-      guardianPhone: '',
-      deviceStatus: 1
+      guardianPhone: ''
     }
   }
   dialogVisible.value = true
@@ -120,11 +113,30 @@ const deleteDevice = async (row) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
+  } catch (e) {
+    return
+  }
+  try {
     await deviceApi.delete(row.id)
     ElMessage.success('删除成功')
     loadList()
   } catch (e) {
-    console.error(e)
+    // 设备仍有历史数据时后端返回 409 拒绝删除，需操作者再确认一次才带 force 删除
+    if (e.code !== 409) {
+      return
+    }
+    try {
+      await ElMessageBox.confirm(e.message, '该设备存在历史数据', {
+        confirmButtonText: '一并删除',
+        cancelButtonText: '取消',
+        type: 'error'
+      })
+      await deviceApi.delete(row.id, true)
+      ElMessage.success('删除成功')
+      loadList()
+    } catch (err) {
+      console.error(err)
+    }
   }
 }
 

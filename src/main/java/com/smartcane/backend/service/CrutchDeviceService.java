@@ -18,5 +18,11 @@ public interface CrutchDeviceService {
 
     Result<Void> update(CrutchDeviceDTO dto);
 
-    Result<Void> delete(Long id);
+    /**
+     * 删除设备。
+     *
+     * @param force 设备存在历史采样/告警时必须显式传 true：外键是 ON DELETE CASCADE，
+     *              删除设备会一并清空该设备的全部历史数据
+     */
+    Result<Void> delete(Long id, boolean force);
 }
