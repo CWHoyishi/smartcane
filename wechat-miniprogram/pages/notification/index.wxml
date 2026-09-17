@@ -1,5 +1,21 @@
-<!-- 消息通知页面 -->
+<!-- 告警处理页面：告警列表 + 处置（确认已处置 / 标记误报） -->
 <view class="container">
+  <!-- 状态筛选 -->
+  <view class="tab-bar">
+    <view
+      class="tab {{activeFilter === item.key ? 'active' : ''}}"
+      wx:for="{{filters}}"
+      wx:key="key"
+      data-key="{{item.key}}"
+      bindtap="onFilterSelect"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 待处理提醒 -->
+  <view class="banner" wx:if="{{pendingCount > 0}}">
+    <text>有 {{pendingCount}} 条待处理告警，请尽快联系老人或监护人确认。</text>
+  </view>
+
   <!-- 加载中 -->
   <view class="loading-tip" wx:if="{{loading}}">
     <text>正在加载告警记录...</text>
@@ -10,44 +26,69 @@
     <text>{{errorMsg}}</text>
   </view>
 
-  <!-- 通知列表 -->
-  <view class="list" wx:if="{{filteredList.length > 0 && !loading}}">
+  <!-- 告警列表 -->
+  <view class="list" wx:if="{{list.length > 0 && !loading}}">
     <view
-      class="item fall-type"
-      wx:for="{{filteredList}}"
+      class="item {{item.pending ? 'unread' : ''}}"
+      wx:for="{{list}}"
       wx:key="id"
       data-id="{{item.id}}"
       bindtap="onViewDetail"
     >
       <view class="item-header">
-        <view class="type-tag type-fall">摔倒告警</view>
-        <text class="item-time">{{item.createTime}}</text>
+        <view class="tag-group">
+          <text class="type-tag {{item.typeClass}}">{{item.typeText}}</text>
+          <text class="status-tag {{item.statusClass}}">{{item.statusText}}</text>
+        </view>
+        <text class="item-time">{{item.time}}</text>
       </view>
-      <text class="item-message">{{item.alarmMessage}}</text>
+
       <view class="device-info">
         <text class="device-sn">设备：{{item.deviceSn}}</text>
         <text class="elder-name" wx:if="{{item.elderName}}">{{item.elderName}}</text>
+        <text class="elder-name" wx:if="{{item.level}}">{{item.level}}</text>
+      </view>
+
+      <view class="item-note" wx:if="{{!item.pending}}">
+        <text>{{item.handleTime}} {{item.handledBy}}{{item.handleNote ? ' · ' + item.handleNote : ''}}</text>
+      </view>
+
+      <!-- 只有待处理的告警才给处置按钮；catchtap 防止冒泡触发详情 -->
+      <view class="item-actions" wx:if="{{item.pending}}">
+        <button class="btn-ack" data-id="{{item.id}}" data-status="1" catchtap="onAck">确认已处置</button>
+        <button class="btn-false" data-id="{{item.id}}" data-status="2" catchtap="onAck">标记误报</button>
       </view>
     </view>
+
+    <view class="list-footer" wx:if="{{loadingMore}}"><text>正在加载...</text></view>
+    <view class="list-footer" wx:elif="{{!hasMore}}"><text>没有更多了</text></view>
   </view>
 
   <!-- 空状态 -->
-  <view class="empty-tip" wx:if="{{filteredList.length === 0 && !loading && !errorMsg}}">
-    <text>暂无告警通知</text>
+  <view class="empty-tip" wx:if="{{list.length === 0 && !loading && !errorMsg}}">
+    <text>暂无告警记录</text>
   </view>
 
   <!-- 详情弹窗 -->
   <view class="mask" wx:if="{{showDetail}}" bindtap="onCloseDetail"></view>
   <view class="detail-popup {{showDetail ? 'show' : ''}}" wx:if="{{showDetail}}">
     <view class="popup-header">
-      <text class="popup-title">摔倒告警详情</text>
+      <text class="popup-title">告警详情</text>
       <text class="close-btn" bindtap="onCloseDetail">✕</text>
     </view>
 
     <view class="popup-body">
       <view class="info-row">
         <text class="info-label">告警类型</text>
-        <text class="info-value type-tag type-fall">摔倒告警</text>
+        <text class="info-value type-tag {{currentDetail.typeClass}}">{{currentDetail.typeText}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">处理状态</text>
+        <text class="info-value status-tag {{currentDetail.statusClass}}">{{currentDetail.statusText}}</text>
+      </view>
+      <view class="info-row" wx:if="{{currentDetail.level}}">
+        <text class="info-label">告警级别</text>
+        <text class="info-value">{{currentDetail.level}}</text>
       </view>
       <view class="info-row">
         <text class="info-label">设备</text>
@@ -58,37 +99,37 @@
         <text class="info-value">{{currentDetail.elderName}}</text>
       </view>
       <view class="info-row">
-        <text class="info-label">时间</text>
-        <text class="info-value">{{currentDetail.createTime}}</text>
+        <text class="info-label">告警时间</text>
+        <text class="info-value">{{currentDetail.time}}</text>
       </view>
-      <view class="divider"></view>
-
-      <!-- 传感器数据 -->
-      <text class="section-subtitle">告警时传感器数据</text>
-      <view class="sensor-grid" wx:if="{{currentDetail.sensorData}}">
-        <view class="sensor-item">
-          <text class="s-label">心率</text>
-          <text class="s-value" style="color:#FF6B6B">{{currentDetail.sensorData.heartRate || '--'}} 次/分</text>
-        </view>
-        <view class="sensor-item">
-          <text class="s-label">血氧</text>
-          <text class="s-value" style="color:#4E6EF2">{{currentDetail.sensorData.bloodOxygen || '--'}} %</text>
-        </view>
-        <view class="sensor-item">
-          <text class="s-label">纬度</text>
-          <text class="s-value">{{currentDetail.sensorData.lat != null ? currentDetail.sensorData.lat : '--'}}</text>
-        </view>
-        <view class="sensor-item">
-          <text class="s-label">经度</text>
-          <text class="s-value">{{currentDetail.sensorData.lon != null ? currentDetail.sensorData.lon : '--'}}</text>
-        </view>
+      <view class="info-row" wx:if="{{currentDetail.alarmValue}}">
+        <text class="info-label">触发依据</text>
+        <text class="info-value">{{currentDetail.alarmValue}}</text>
       </view>
 
-      <view class="divider"></view>
-      <text class="info-label" style="font-size:26rpx">{{currentDetail.alarmMessage}}</text>
+      <block wx:if="{{!currentDetail.pending}}">
+        <view class="divider"></view>
+        <text class="section-subtitle">处置记录</text>
+        <view class="info-row">
+          <text class="info-label">处理人</text>
+          <text class="info-value">{{currentDetail.handledBy || '--'}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">处理时间</text>
+          <text class="info-value">{{currentDetail.handleTime || '--'}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">备注</text>
+          <text class="info-value">{{currentDetail.handleNote || '--'}}</text>
+        </view>
+      </block>
     </view>
 
     <view class="popup-footer">
+      <block wx:if="{{currentDetail.pending}}">
+        <button class="btn-ack" data-id="{{currentDetail.id}}" data-status="1" catchtap="onAck">确认已处置</button>
+        <button class="btn-false" data-id="{{currentDetail.id}}" data-status="2" catchtap="onAck">标记误报</button>
+      </block>
       <button class="btn-close" bindtap="onCloseDetail">关闭</button>
     </view>
   </view>

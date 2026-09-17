@@ -26,7 +26,7 @@
         </el-menu-item>
         <el-menu-item index="/fall">
           <el-icon><Warning /></el-icon>
-          <span>摔倒告警</span>
+          <span>告警处理</span>
         </el-menu-item>
         <el-menu-item index="/health-stat">
           <el-icon><TrendCharts /></el-icon>
@@ -59,7 +59,7 @@ const pageTitle = computed(() => {
     '/device': '设备管理',
     '/sensor': '传感器数据',
     '/latest': '实时监测',
-    '/fall': '摔倒告警',
+    '/fall': '告警处理',
     '/health-stat': '健康统计'
   }
   return titles[route.path] || ''

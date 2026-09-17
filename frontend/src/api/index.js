@@ -69,6 +69,37 @@ export const healthStatApi = {
   }
 }
 
+export const alarmApi = {
+  // 分页查询：status 不传查全部，0 待处理 / 1 已确认 / 2 误报
+  page(data) {
+    return request({
+      url: '/alarm/page',
+      method: 'post',
+      data
+    })
+  },
+  listPending() {
+    return request({
+      url: '/alarm/pending',
+      method: 'get'
+    })
+  },
+  listByDeviceSn(deviceSn) {
+    return request({
+      url: `/alarm/list/${deviceSn}`,
+      method: 'get'
+    })
+  },
+  // 处置是一次性动作：后端只接受 1 或 2，已处理的记录不能重复处置
+  ack(data) {
+    return request({
+      url: '/alarm/ack',
+      method: 'put',
+      data
+    })
+  }
+}
+
 export const sensorApi = {
   page(data) {
     return request({
@@ -86,12 +117,6 @@ export const sensorApi = {
   getLatest(deviceSn) {
     return request({
       url: `/sensor/latest/${deviceSn}`,
-      method: 'get'
-    })
-  },
-  listFallAlarms() {
-    return request({
-      url: '/sensor/fall-alarms',
       method: 'get'
     })
   },

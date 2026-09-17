@@ -51,11 +51,18 @@ module.exports = {
     weekly: (deviceSn, weeks) => request({ url: '/health-stat/weekly/' + deviceSn, data: { weeks } })
   },
 
+  /** 告警闭环接口：查询 + 处置（1 已确认 / 2 误报） */
+  alarm: {
+    page: (data) => request({ url: '/alarm/page', method: 'POST', data }),
+    pending: () => request({ url: '/alarm/pending' }),
+    listByDeviceSn: (deviceSn) => request({ url: '/alarm/list/' + deviceSn }),
+    ack: (data) => request({ url: '/alarm/ack', method: 'PUT', data })
+  },
+
   /** 传感器数据接口 */
   sensor: {
     getLatest: (deviceSn) => request({ url: '/sensor/latest/' + deviceSn }),
     list: (deviceSn) => request({ url: '/sensor/list/' + deviceSn }),
-    page: (data) => request({ url: '/sensor/page', method: 'POST', data }),
-    listFallAlarms: () => request({ url: '/sensor/fall-alarms' })
+    page: (data) => request({ url: '/sensor/page', method: 'POST', data })
   }
 }
