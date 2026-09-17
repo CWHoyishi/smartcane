@@ -4,6 +4,7 @@
       <div style="display: flex; align-items: center; justify-content: space-between">
         <span>实时位置地图</span>
         <div style="display: flex; align-items: center; gap: 12px">
+          <span style="margin-right: 12px; color: #409eff; font-size: 13px">{{ positionSummary }}</span>
           <span style="color: #909399; font-size: 13px">每 10 秒自动刷新，后端数据源约 60 秒拉取一次</span>
           <el-button type="primary" size="small" @click="loadLocations">立即刷新</el-button>
         </div>
@@ -23,6 +24,7 @@ const DEFAULT_CENTER = [31.2304, 121.4737]
 const REFRESH_INTERVAL_MS = 10 * 1000
 
 const mapContainer = ref(null)
+const positionSummary = ref('加载中...')
 let map = null
 let markerLayer = null
 let timer = null
@@ -67,6 +69,7 @@ const popupHtml = (item) => {
 const renderLocations = (items) => {
   markerLayer.clearLayers()
   const valid = items.filter(isValidCoordinate)
+  positionSummary.value = '有效定位 ' + valid.length + ' / 设备 ' + items.length
   if (valid.length === 0) {
     return
   }
