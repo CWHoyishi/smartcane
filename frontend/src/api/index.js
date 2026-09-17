@@ -7,6 +7,12 @@ export const deviceApi = {
       method: 'get'
     })
   },
+  latestLocations() {
+    return request({
+      url: '/device/latest-locations',
+      method: 'get'
+    })
+  },
   getById(id) {
     return request({
       url: `/device/${id}`,

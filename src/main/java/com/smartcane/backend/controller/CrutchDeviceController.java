@@ -2,6 +2,7 @@ package com.smartcane.backend.controller;
 
 import com.smartcane.backend.entity.dto.CrutchDeviceDTO;
 import com.smartcane.backend.entity.vo.CrutchDeviceVO;
+import com.smartcane.backend.entity.vo.LatestDeviceLocationVO;
 import com.smartcane.backend.entity.vo.Result;
 import com.smartcane.backend.service.CrutchDeviceService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +24,12 @@ public class CrutchDeviceController {
     @GetMapping("/list")
     public Result<List<CrutchDeviceVO>> list() {
         return crutchDeviceService.list();
+    }
+
+    @Operation(summary = "查询所有设备最新位置（地图轮询用）")
+    @GetMapping("/latest-locations")
+    public Result<List<LatestDeviceLocationVO>> latestLocations() {
+        return crutchDeviceService.latestLocations();
     }
 
     @Operation(summary = "根据ID查询设备详情")

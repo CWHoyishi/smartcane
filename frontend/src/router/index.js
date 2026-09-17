@@ -21,6 +21,11 @@ const routes = [
     component: () => import('@/views/LatestDataView.vue')
   },
   {
+    path: '/map',
+    name: 'Map',
+    component: () => import('@/views/MapView.vue')
+  },
+  {
     path: '/fall',
     name: 'FallAlarms',
     component: () => import('@/views/FallAlarmView.vue')

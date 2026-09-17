@@ -7,6 +7,7 @@ import com.smartcane.backend.entity.po.CrutchDevice;
 import com.smartcane.backend.entity.po.CrutchSensorData;
 import com.smartcane.backend.entity.vo.CrutchDeviceVO;
 import com.smartcane.backend.entity.vo.DeviceLastSeenVO;
+import com.smartcane.backend.entity.vo.LatestDeviceLocationVO;
 import com.smartcane.backend.entity.vo.Result;
 import com.smartcane.backend.mapper.AlarmRecordMapper;
 import com.smartcane.backend.mapper.CrutchDeviceMapper;
@@ -50,6 +51,17 @@ public class CrutchDeviceServiceImpl implements CrutchDeviceService {
                 .collect(Collectors.toList());
         applyOnlineStatus(voList);
         return Result.success(voList);
+    }
+
+    @Override
+    public Result<List<LatestDeviceLocationVO>> latestLocations() {
+        List<LatestDeviceLocationVO> locations = crutchDeviceMapper.selectLatestLocations();
+        LocalDateTime onlineAfter = LocalDateTime.now().minusSeconds(OFFLINE_THRESHOLD_SECONDS);
+        for (LatestDeviceLocationVO vo : locations) {
+            LocalDateTime lastReportTime = vo.getReportTime();
+            vo.setDeviceStatus(lastReportTime != null && lastReportTime.isAfter(onlineAfter) ? 1 : 0);
+        }
+        return Result.success(locations);
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.smartcane.backend.service;
 
 import com.smartcane.backend.entity.dto.CrutchDeviceDTO;
 import com.smartcane.backend.entity.vo.CrutchDeviceVO;
+import com.smartcane.backend.entity.vo.LatestDeviceLocationVO;
 import com.smartcane.backend.entity.vo.Result;
 
 import java.util.List;
@@ -9,6 +10,9 @@ import java.util.List;
 public interface CrutchDeviceService {
 
     Result<List<CrutchDeviceVO>> list();
+
+    /** 查询所有设备的最新位置（地图轮询用），无采样的设备坐标为 null。 */
+    Result<List<LatestDeviceLocationVO>> latestLocations();
 
     Result<CrutchDeviceVO> getById(Long id);
 

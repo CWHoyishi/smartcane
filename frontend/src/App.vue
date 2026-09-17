@@ -24,6 +24,10 @@
           <el-icon><Location /></el-icon>
           <span>实时监测</span>
         </el-menu-item>
+        <el-menu-item index="/map">
+          <el-icon><MapLocation /></el-icon>
+          <span>实时地图</span>
+        </el-menu-item>
         <el-menu-item index="/fall">
           <el-icon><Warning /></el-icon>
           <span>告警处理</span>
@@ -59,6 +63,7 @@ const pageTitle = computed(() => {
     '/device': '设备管理',
     '/sensor': '传感器数据',
     '/latest': '实时监测',
+    '/map': '实时地图',
     '/fall': '告警处理',
     '/health-stat': '健康统计'
   }
