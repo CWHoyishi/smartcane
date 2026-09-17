@@ -14,6 +14,18 @@ function parseCoord(val) {
   return num
 }
 
+/**
+ * 判断坐标是否能落到地图上。
+ * 与 Web 端一致过滤 lat=0 的占位值：直接画会落到赤道。
+ */
+function isValidLocation(lat, lon) {
+  if (lat === null || lat === undefined || lon === null || lon === undefined) return false
+  const la = Number(lat)
+  const lo = Number(lon)
+  if (isNaN(la) || isNaN(lo)) return false
+  return isFinite(la) && isFinite(lo) && la >= -90 && la <= 90 && lo >= -180 && lo <= 180 && Math.abs(la) > 0.000001
+}
+
 Page({
   data: {
     devices: [],
@@ -30,6 +42,11 @@ Page({
       reportTime: ''
     },
     countdown: REFRESH_INTERVAL,
+    // 地图展示
+    mapLat: null,
+    mapLon: null,
+    hasValidLocation: false,
+    markers: [],
     // 状态
     loading: false,
     errorMsg: ''
@@ -101,15 +118,34 @@ Page({
         const raw = res.data
         console.log('[Monitor] lat=%s(%s) lon=%s(%s)', raw.lat, typeof raw.lat, raw.lon, typeof raw.lon)
 
+        const lat = parseCoord(raw.lat)
+        const lon = parseCoord(raw.lon)
+        const hasValidLocation = isValidLocation(lat, lon)
         this.setData({
           sensorData: {
             heartRate: raw.heartRate != null ? raw.heartRate : '--',
             bloodOxygen: raw.bloodOxygen != null ? raw.bloodOxygen : '--',
-            lat: parseCoord(raw.lat),
-            lon: parseCoord(raw.lon),
+            lat: lat,
+            lon: lon,
             fallStatus: raw.fallStatus != null ? raw.fallStatus : 0,
             reportTime: raw.reportTime || ''
           },
+          mapLat: hasValidLocation ? lat : null,
+          mapLon: hasValidLocation ? lon : null,
+          hasValidLocation: hasValidLocation,
+          markers: hasValidLocation ? [{
+            id: 1,
+            latitude: lat,
+            longitude: lon,
+            width: 32,
+            height: 32,
+            callout: {
+              content: (this.data.currentDeviceName || this.data.currentDeviceSn || '设备') + ' · ' + (raw.reportTime || ''),
+              display: 'ALWAYS',
+              fontSize: 12,
+              padding: 8
+            }
+          }] : [],
           errorMsg: ''
         })
         console.log('[Monitor] 处理后 lat=%s lon=%s', this.data.sensorData.lat, this.data.sensorData.lon)
@@ -158,6 +194,10 @@ Page({
         fallStatus: 0,
         reportTime: ''
       },
+      mapLat: null,
+      mapLon: null,
+      hasValidLocation: false,
+      markers: [],
       errorMsg: ''
     })
     this.fetchSensorData()
