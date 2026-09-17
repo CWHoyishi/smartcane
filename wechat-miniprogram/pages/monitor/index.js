@@ -16,14 +16,14 @@ function parseCoord(val) {
 
 /**
  * 判断坐标是否能落到地图上。
- * 与 Web 端一致过滤 lat=0 的占位值：直接画会落到赤道。
+ * 只校验空值和经纬度范围；lat=0 视为有效坐标。
  */
 function isValidLocation(lat, lon) {
   if (lat === null || lat === undefined || lon === null || lon === undefined) return false
   const la = Number(lat)
   const lo = Number(lon)
   if (isNaN(la) || isNaN(lo)) return false
-  return isFinite(la) && isFinite(lo) && la >= -90 && la <= 90 && lo >= -180 && lo <= 180 && Math.abs(la) > 0.000001
+  return isFinite(la) && isFinite(lo) && la >= -90 && la <= 90 && lo >= -180 && lo <= 180
 }
 
 Page({

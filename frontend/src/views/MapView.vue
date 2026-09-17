@@ -35,8 +35,7 @@ const isValidCoordinate = (item) => {
   }
   const lat = Number(item.lat)
   const lon = Number(item.lon)
-  // 演示数据存在 lat=0 的占位坐标，直接画会落到赤道，过滤掉
-  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 && Math.abs(lat) > 0.000001
+  return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
 }
 
 const statusText = (item) => {
