@@ -1,0 +1,18 @@
+<view class="login-page">
+  <view class="login-title">智能拐杖系统</view>
+  <view class="login-subtitle">账号密码登录</view>
+
+  <view class="field">
+    <text class="label">账号</text>
+    <input class="input" value="{{username}}" placeholder="请输入账号" bindinput="onUsernameInput" />
+  </view>
+
+  <view class="field">
+    <text class="label">密码</text>
+    <input class="input" value="{{password}}" password placeholder="请输入密码" bindinput="onPasswordInput" />
+  </view>
+
+  <button class="login-btn" loading="{{loading}}" bindtap="onLogin">登录</button>
+
+  <view class="login-tip">演示账号：admin / admin123（管理员）、guardian / guardian123（监护人）</view>
+</view>

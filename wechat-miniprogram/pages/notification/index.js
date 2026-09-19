@@ -66,6 +66,10 @@ Page({
     this.loadList(true)
   },
 
+  onShow() {
+    api.ensureLogin()
+  },
+
   onPullDownRefresh() {
     this.loadDevices()
     this.loadPendingCount()

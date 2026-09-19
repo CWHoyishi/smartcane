@@ -55,4 +55,9 @@
   <view class="bind-btn" bindtap="onBindDevice">
     <text>+ 绑定新设备</text>
   </view>
+
+  <!-- 退出登录 -->
+  <view class="logout-btn" bindtap="onLogout">
+    <text>退出登录</text>
+  </view>
 </view>

@@ -64,7 +64,9 @@ Page({
     this.loadHistoryData()
   },
 
-  onShow() {},
+  onShow() {
+    api.ensureLogin()
+  },
 
   onPullDownRefresh() {
     this.loadHistoryData().then(() => {

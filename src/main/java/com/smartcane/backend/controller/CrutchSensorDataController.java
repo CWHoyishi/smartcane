@@ -7,6 +7,7 @@ import com.smartcane.backend.entity.vo.LatestSensorDataVO;
 import com.smartcane.backend.entity.vo.Result;
 import com.smartcane.backend.entity.vo.SensorDataVO;
 import com.smartcane.backend.service.CrutchSensorDataService;
+import com.smartcane.backend.service.auth.DataScopeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,9 @@ public class CrutchSensorDataController {
 
     @Autowired
     private CrutchSensorDataService sensorDataService;
+
+    @Autowired
+    private DataScopeService dataScopeService;
 
     @Operation(summary = "分页查询传感器数据")
     @PostMapping("/page")
@@ -55,6 +59,7 @@ public class CrutchSensorDataController {
     @Operation(summary = "删除传感器数据记录")
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable("id") Long id) {
+        dataScopeService.assertAdmin();
         return sensorDataService.delete(id);
     }
 }

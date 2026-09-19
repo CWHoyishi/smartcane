@@ -14,6 +14,7 @@ import com.smartcane.backend.mapper.HealthDailyStatMapper;
 import com.smartcane.backend.mapper.HealthHourlyStatMapper;
 import com.smartcane.backend.service.HealthStatAggregator;
 import com.smartcane.backend.service.HealthStatService;
+import com.smartcane.backend.service.auth.DataScopeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,11 +63,15 @@ public class HealthStatServiceImpl implements HealthStatService {
     @Autowired
     private CrutchSensorDataMapper sensorDataMapper;
 
+    @Autowired
+    private DataScopeService dataScopeService;
+
     @Override
     public Result<List<DailyHealthStatVO>> listDaily(String deviceSn, Integer days) {
         if (!StringUtils.hasText(deviceSn)) {
             return Result.error("设备序列号不能为空");
         }
+        dataScopeService.assertDeviceAccess(deviceSn);
         int span = clamp(days, DEFAULT_DAILY_DAYS, MAX_DAILY_DAYS);
         LocalDate end = LocalDate.now();
         LocalDate start = end.minusDays(span - 1L);
@@ -89,6 +94,7 @@ public class HealthStatServiceImpl implements HealthStatService {
         if (!StringUtils.hasText(deviceSn)) {
             return Result.error("设备序列号不能为空");
         }
+        dataScopeService.assertDeviceAccess(deviceSn);
         int span = clamp(weeks, DEFAULT_WEEKLY_WEEKS, MAX_WEEKLY_WEEKS);
         LocalDate thisWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate firstWeekStart = thisWeekStart.minusWeeks(span - 1L);

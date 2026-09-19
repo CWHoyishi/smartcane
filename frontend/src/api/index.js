@@ -1,5 +1,28 @@
 import request from '@/utils/request'
 
+export const authApi = {
+  login(data) {
+    return request({
+      url: '/auth/login',
+      method: 'post',
+      data
+    })
+  },
+  logout() {
+    return request({
+      url: '/auth/logout',
+      method: 'post'
+    })
+  },
+  // 用于刷新角色/姓名：会话有效但本地缓存的用户信息可能过期
+  me() {
+    return request({
+      url: '/auth/me',
+      method: 'get'
+    })
+  }
+}
+
 export const deviceApi = {
   list() {
     return request({

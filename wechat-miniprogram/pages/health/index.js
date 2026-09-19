@@ -119,6 +119,10 @@ Page({
     this.loadStats()
   },
 
+  onShow() {
+    api.ensureLogin()
+  },
+
   onPullDownRefresh() {
     this.loadStats().then(() => {
       wx.stopPullDownRefresh()

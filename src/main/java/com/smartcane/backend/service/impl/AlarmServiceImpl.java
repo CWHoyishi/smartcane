@@ -10,6 +10,7 @@ import com.smartcane.backend.entity.vo.Result;
 import com.smartcane.backend.mapper.AlarmRecordMapper;
 import com.smartcane.backend.service.AlarmEvaluator;
 import com.smartcane.backend.service.AlarmService;
+import com.smartcane.backend.service.auth.DataScopeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -35,11 +36,17 @@ public class AlarmServiceImpl implements AlarmService {
     @Autowired
     private AlarmRecordMapper alarmRecordMapper;
 
+    @Autowired
+    private DataScopeService dataScopeService;
+
     @Override
     public Result<IPage<AlarmRecord>> page(AlarmQueryDTO dto) {
         QueryWrapper<AlarmRecord> wrapper = new QueryWrapper<>();
         if (StringUtils.hasText(dto.getDeviceSn())) {
+            dataScopeService.assertDeviceAccess(dto.getDeviceSn());
             wrapper.eq("device_sn", dto.getDeviceSn());
+        } else {
+            dataScopeService.applyDeviceScope(wrapper, "device_sn");
         }
         if (StringUtils.hasText(dto.getAlarmType())) {
             wrapper.eq("alarm_type", dto.getAlarmType());
@@ -60,6 +67,7 @@ public class AlarmServiceImpl implements AlarmService {
     public Result<List<AlarmRecord>> listPending() {
         QueryWrapper<AlarmRecord> wrapper = new QueryWrapper<>();
         wrapper.eq("status", AlarmEvaluator.STATUS_PENDING);
+        dataScopeService.applyDeviceScope(wrapper, "device_sn");
         wrapper.orderByDesc("report_time");
         wrapper.last("LIMIT " + PENDING_LIMIT);
         return Result.success(alarmRecordMapper.selectList(wrapper));
@@ -70,6 +78,7 @@ public class AlarmServiceImpl implements AlarmService {
         if (!StringUtils.hasText(deviceSn)) {
             return Result.error("设备序列号不能为空");
         }
+        dataScopeService.assertDeviceAccess(deviceSn);
         QueryWrapper<AlarmRecord> wrapper = new QueryWrapper<>();
         wrapper.eq("device_sn", deviceSn);
         wrapper.orderByDesc("report_time");
@@ -90,6 +99,8 @@ public class AlarmServiceImpl implements AlarmService {
         if (record == null) {
             return Result.error("告警记录不存在");
         }
+        // 处置按 id 操作：必须补归属校验，否则改个 id 就能处置别人家的告警
+        dataScopeService.assertDeviceAccess(record.getDeviceSn());
         // 处置是一次性动作：已确认/已标记误报的记录不允许再次改写，避免现场重复点击覆盖处置结论
         if (record.getStatus() == null || record.getStatus() != AlarmEvaluator.STATUS_PENDING) {
             return Result.error("该告警已处理，不能重复处置");

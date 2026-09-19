@@ -254,6 +254,33 @@
 
 
 
+### 迭代 10：登录鉴权 + 监护人数据隔离（已完成，DDL 已执行）
+
+迭代 10 之前项目是**零鉴权**：任何能连到 8080 的人都能读写全部设备数据。本迭代引入账号体系与数据范围控制。
+
+**决策**（2026-09-19 定案）：
+- 前端（Vue）与小程序都要登录；小程序用**账号密码**，不接微信 code2session（需要 AppSecret 与备案域名，内网演示不具备）。
+- 权限粒度做**监护人数据隔离**：`GUARDIAN` 只能访问绑定过的设备，`ADMIN` 不受限。
+- **不用 JWT**：会话存 Redis（key `smartcane:auth:token:{token}`，value 为 userId，TTL 2 小时，有请求就续期）。内网演示不需要跨服务验签，存 Redis 可随时登出/踢人，也省掉签名密钥管理。
+- **不用 BCrypt**：本地 Maven 仓库只有 Spring Security 5.x 的 crypto 包（Boot 3.4.5 属 Security 6 世代），混用有风险；改用 JDK 自带的 **PBKDF2WithHmacSHA256**，存储格式 `pbkdf2$迭代次数$盐$哈希`，迭代 120000，校验用 `MessageDigest.isEqual`（定长比较）。
+- 每个请求回查一次 `t_user`：多一次主键查询，换「停用账号 / 改角色立即生效」。
+- 登录失败时「账号不存在」与「密码错误」返回同一提示，避免接口退化成用户名枚举器。
+- 业务码沿用项目约定放在响应体：`401` 未登录或已过期、`403` 无权限（HTTP 状态仍固定 200）。
+
+**后端**：
+- 新增 `t_user`、`t_user_device`（脚本 `docs/sql/iteration10_auth.sql`，✅ 2026-09-19 已在库上执行）。
+- `AuthInterceptor` 拦 `/api/**`，放行 `/api/auth/login` 与 `/api/sensor/report`（设备侧没有登录能力，演示环境未下发设备密钥）；身份放 ThreadLocal（`AuthContext`），`afterCompletion` 清理，避免 Tomcat 线程复用串号。
+- `DataScopeService` 是唯一的范围判定入口：单设备接口 `assertDeviceAccess`、列表接口 `applyDeviceScope`、管理操作 `assertAdmin`。**失败关闭**：走到这里还没有身份就直接抛异常，防止将来漏配路径导致全量数据暴露。
+- 接入点：传感器分页/按设备列表/最新一条、告警分页/待处理/按设备查询/处置、健康统计日周报、设备列表/详情/最新位置。
+- 管理员专属：设备增删改、传感器删除、健康统计重算、OneNet 配置与 token。`assertAdmin()` 放在 Controller 层而不是 service 层——`HealthStatScheduler`、`DataSyncScheduler` 会直接调 service，service 层不能要求登录。
+- 监护人查设备列表时手机号脱敏（保前 3 后 4）。
+
+**前端（Vue，端口 3000）**：新增 `LoginView`；路由守卫（无 token 跳 `/login`，`meta.roles` 控制管理员页）；请求拦截器自动带 `Authorization: Bearer <token>`，401 清会话跳登录、403 提示无权限；侧边菜单按角色过滤（监护人看不到设备管理）；顶栏显示姓名/角色与退出按钮。
+
+**小程序**：新增 `pages/login`（放在 `pages` 首位，不进 tabBar）；`utils/api.js` 统一带 token，业务码 401 自动 `reLaunch` 回登录页，各页 `onShow` 调 `ensureLogin()` 兜底；设备页加退出登录入口。
+
+**演示账号**（内网演示用，正式部署必须改口令）：`admin / admin123`（管理员）、`guardian / guardian123`（监护人，已绑定设备 `862323084243065`）。
+
 ## 6. 数据库现状与约束（依据现有建表 SQL）
 
 - `t_crutch_sensor_data` 已有索引：`idx_dev_report (device_sn, report_time)`、`idx_fall_status (fall_status)`。
@@ -263,6 +290,7 @@
 - 新增 `t_alarm_record`（迭代 5）：唯一键 `uk_device_alarm (device_sn, alarm_type, report_time)`、索引 `idx_alarm_status_time (status, report_time)`，外键同样 `ON DELETE CASCADE`。
 - 新增 `t_health_daily_stat`（迭代 8）：唯一键 `uk_device_date (device_sn, stat_date)`，无额外索引（查询口径是「单设备 + 日期区间」）。
 - 新增 `t_health_hourly_stat`（迭代 9）：唯一键 `uk_device_hour (device_sn, stat_hour)`，长期保留、无清理任务。
+- 新增 `t_user` / `t_user_device`（迭代 10）：`uk_username`、`uk_user_device (user_id, device_sn)`；`t_user_device.device_sn` 外键指向 `t_crutch_device` 并 `ON DELETE CASCADE`（删设备会连带清绑定关系，但不动用户本身）。
 
 ## 7. 风险与待办
 
@@ -279,3 +307,7 @@
 | 在线时长口径 | ✅ 已定案 | 2026-09-16 由「间隔 ≤5 分钟且位移 ≥10 米」改为在线口径：间隔 ≤300 秒即累加。只改 `HealthStatAggregator.onlineSecondsBetween`，表结构与字段名未动；库里 `active_minutes` 列注释仍是旧文案（纯注释，无功能影响） |
 | 敏感信息 | 已知风险 | `application.yml` 中 MySQL 密码与 OneNET accessKey 为明文，且已进入 git 历史 |
 | fastjson 1.2.83 | 待处理 | 存在已知反序列化风险，计划在迭代 3 之后替换为 Jackson 或 fastjson2 |
+| 登录口令 | 内网演示 | `admin/admin123`、`guardian/guardian123` 是演示口令，正式部署必须改；库内只存 PBKDF2 哈希，不存明文 |
+| 登录态传输 | 已知风险 | 内网演示未启用 HTTPS，密码与 token 明文传输；正式部署必须上 HTTPS |
+| 设备上报接口 | 已知风险 | `/api/sensor/report` 在鉴权白名单中（设备没有登录能力），演示环境未下发设备密钥；公网部署前需补设备级鉴权 |
+| 鉴权运行验证 | 待执行 | 沙箱无法启动 Tomcat；需在 IDE 启动后端后验证：登录成功、监护人越权访问他人设备返回 403、登出后原 token 立即失效 |

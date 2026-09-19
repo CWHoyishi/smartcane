@@ -5,6 +5,7 @@ import com.smartcane.backend.entity.vo.CrutchDeviceVO;
 import com.smartcane.backend.entity.vo.LatestDeviceLocationVO;
 import com.smartcane.backend.entity.vo.Result;
 import com.smartcane.backend.service.CrutchDeviceService;
+import com.smartcane.backend.service.auth.DataScopeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,9 @@ public class CrutchDeviceController {
 
     @Autowired
     private CrutchDeviceService crutchDeviceService;
+
+    @Autowired
+    private DataScopeService dataScopeService;
 
     @Operation(summary = "查询设备列表")
     @GetMapping("/list")
@@ -47,12 +51,14 @@ public class CrutchDeviceController {
     @Operation(summary = "新增设备")
     @PostMapping("/add")
     public Result<Void> add(@RequestBody CrutchDeviceDTO dto) {
+        dataScopeService.assertAdmin();
         return crutchDeviceService.add(dto);
     }
 
     @Operation(summary = "更新设备信息")
     @PutMapping("/update")
     public Result<Void> update(@RequestBody CrutchDeviceDTO dto) {
+        dataScopeService.assertAdmin();
         return crutchDeviceService.update(dto);
     }
 
@@ -60,6 +66,7 @@ public class CrutchDeviceController {
     @DeleteMapping("/delete/{id}")
     public Result<Void> delete(@PathVariable("id") Long id,
                                @RequestParam(value = "force", defaultValue = "false") boolean force) {
+        dataScopeService.assertAdmin();
         return crutchDeviceService.delete(id, force);
     }
 }

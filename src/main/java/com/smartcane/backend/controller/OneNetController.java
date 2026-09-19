@@ -3,6 +3,7 @@ package com.smartcane.backend.controller;
 import com.smartcane.backend.config.onenet.OneNetMqttProperties;
 import com.smartcane.backend.config.onenet.OneNetTokenUtil;
 import com.smartcane.backend.entity.vo.Result;
+import com.smartcane.backend.service.auth.DataScopeService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,9 +22,14 @@ public class OneNetController {
     @Autowired
     private OneNetMqttProperties properties;
 
+    @Autowired
+    private DataScopeService dataScopeService;
+
     @Operation(summary = "查看 OneNet 配置信息")
     @GetMapping("/config")
     public Result<Map<String, String>> getConfig() {
+        // 配置里含 accessKey，属于密钥信息
+        dataScopeService.assertAdmin();
         Map<String, String> config = new HashMap<>();
         config.put("mqttHost", properties.getMqtt().getHost());
         config.put("mqttProductId", properties.getMqtt().getProductId());
@@ -41,6 +47,8 @@ public class OneNetController {
     @Operation(summary = "生成 OneNet Token (用于调试)")
     @GetMapping("/token")
     public Result<Map<String, String>> generateToken() throws UnsupportedEncodingException {
+        // 生成的 token 可直接接进云平台，只允许管理员获取
+        dataScopeService.assertAdmin();
         Map<String, String> result = new HashMap<>();
         String token = OneNetTokenUtil.generateToken(
                 properties.getMqtt().getProductId(),

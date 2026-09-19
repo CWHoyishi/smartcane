@@ -14,6 +14,9 @@ Page({
   },
 
   onShow() {
+    if (!api.ensureLogin()) {
+      return
+    }
     this.loadDevices()
   },
 
@@ -57,6 +60,18 @@ Page({
         errorMsg: '无法连接服务器，请检查网络或确认后端服务已启动'
       })
     }
+  },
+
+  /** 退出登录：先让服务端失效 token，再清本地并回登录页 */
+  async onLogout() {
+    try {
+      await api.auth.logout()
+    } catch (e) {
+      // 会话可能已经过期，登出接口失败也要清掉本地登录态
+      console.warn('[Device] 登出接口失败:', e.message)
+    }
+    api.clearSession()
+    wx.reLaunch({ url: '/pages/login/index' })
   },
 
   /** 绑定新设备 */

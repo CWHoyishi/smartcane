@@ -12,6 +12,7 @@ import com.smartcane.backend.entity.vo.SensorDataVO;
 import com.smartcane.backend.mapper.CrutchSensorDataMapper;
 import com.smartcane.backend.service.CrutchSensorDataService;
 import com.smartcane.backend.service.SensorDataWriter;
+import com.smartcane.backend.service.auth.DataScopeService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,11 +41,19 @@ public class CrutchSensorDataServiceImpl implements CrutchSensorDataService {
     @Autowired
     private SensorDataWriter sensorDataWriter;
 
+    @Autowired
+    private DataScopeService dataScopeService;
+
     @Override
     public Result<IPage<SensorDataVO>> page(SensorDataQueryDTO dto) {
         QueryWrapper<CrutchSensorData> wrapper = new QueryWrapper<>();
         if (StringUtils.hasText(dto.getDeviceSn())) {
+            // 指定设备的查询：先校验归属，监护人查别人家的设备直接 403
+            dataScopeService.assertDeviceAccess(dto.getDeviceSn());
             wrapper.eq("device_sn", dto.getDeviceSn());
+        } else {
+            // 不带设备号：按登录人的绑定范围收窄，避免一次翻到全部设备
+            dataScopeService.applyDeviceScope(wrapper, "device_sn");
         }
         if (dto.getStartTime() != null) {
             wrapper.ge("report_time", dto.getStartTime());
@@ -69,6 +78,7 @@ public class CrutchSensorDataServiceImpl implements CrutchSensorDataService {
 
     @Override
     public Result<List<SensorDataVO>> listByDeviceSn(String deviceSn) {
+        dataScopeService.assertDeviceAccess(deviceSn);
         QueryWrapper<CrutchSensorData> wrapper = new QueryWrapper<>();
         wrapper.eq("device_sn", deviceSn);
         wrapper.orderByDesc("report_time");
@@ -83,6 +93,7 @@ public class CrutchSensorDataServiceImpl implements CrutchSensorDataService {
 
     @Override
     public Result<LatestSensorDataVO> getLatest(String deviceSn) {
+        dataScopeService.assertDeviceAccess(deviceSn);
         LatestSensorDataVO vo = sensorDataMapper.selectLatestByDeviceSn(deviceSn);
         if (vo == null) {
             return Result.error("暂无传感器数据");
@@ -94,6 +105,7 @@ public class CrutchSensorDataServiceImpl implements CrutchSensorDataService {
     public Result<List<SensorDataVO>> listFallAlarms() {
         QueryWrapper<CrutchSensorData> wrapper = new QueryWrapper<>();
         wrapper.eq("fall_status", 1);
+        dataScopeService.applyDeviceScope(wrapper, "device_sn");
         wrapper.orderByDesc("report_time");
         wrapper.last("LIMIT 50");
         List<CrutchSensorData> list = sensorDataMapper.selectList(wrapper);

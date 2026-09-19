@@ -42,4 +42,14 @@
 }
 .bind-btn:active { opacity: 0.9; transform: scale(0.98); }
 
+.logout-btn {
+  width: 100%; height: 88rpx;
+  background: #FFFFFF; color: #4E5969;
+  border: 1rpx solid #E5E6EB; border-radius: 44rpx;
+  font-size: 30rpx;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 24rpx;
+}
+.logout-btn:active { opacity: 0.9; }
+
 .empty-tip { text-align: center; padding: 120rpx 0; color: #86909C; font-size: 28rpx; }

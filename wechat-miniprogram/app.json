@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/login/index",
     "pages/monitor/index",
     "pages/history/index",
     "pages/health/index",

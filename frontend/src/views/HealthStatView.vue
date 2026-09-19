@@ -22,7 +22,7 @@
             />
           </el-select>
           <el-button :loading="loading" @click="load">刷新</el-button>
-          <el-button type="primary" :loading="rebuilding" @click="rebuild">重算统计</el-button>
+          <el-button v-if="isAdminUser" type="primary" :loading="rebuilding" @click="rebuild">重算统计</el-button>
         </div>
       </div>
     </template>
@@ -129,6 +129,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { deviceApi, healthStatApi } from '@/api'
+import { getUser } from '@/utils/auth'
 import TrendChart from '@/components/TrendChart.vue'
 
 /** 趋势图默认窗口：日报最近 7 天、周报最近 4 周 */
@@ -141,6 +142,9 @@ const deviceList = ref([])
 const rows = ref([])
 const loading = ref(false)
 const rebuilding = ref(false)
+
+// 重算是管理员专属操作，监护人看不到入口
+const isAdminUser = computed(() => (getUser() || {}).role === 'ADMIN')
 
 /** 概览卡片取区间内最后一个统计周期（日报=今天，周报=本周） */
 const current = computed(() => rows.value[rows.value.length - 1] || {})

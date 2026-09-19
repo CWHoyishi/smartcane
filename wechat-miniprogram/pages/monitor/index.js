@@ -64,6 +64,9 @@ Page({
   },
 
   onShow() {
+    if (!api.ensureLogin()) {
+      return
+    }
     // 每次回到页面时刷新数据
     if (this.data.currentDeviceSn) {
       this.fetchSensorData()

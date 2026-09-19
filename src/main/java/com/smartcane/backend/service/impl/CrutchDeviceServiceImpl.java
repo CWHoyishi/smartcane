@@ -13,6 +13,7 @@ import com.smartcane.backend.mapper.AlarmRecordMapper;
 import com.smartcane.backend.mapper.CrutchDeviceMapper;
 import com.smartcane.backend.mapper.CrutchSensorDataMapper;
 import com.smartcane.backend.service.CrutchDeviceService;
+import com.smartcane.backend.service.auth.DataScopeService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,21 +42,56 @@ public class CrutchDeviceServiceImpl implements CrutchDeviceService {
     @Autowired
     private AlarmRecordMapper alarmRecordMapper;
 
+    @Autowired
+    private DataScopeService dataScopeService;
+
     @Override
     public Result<List<CrutchDeviceVO>> list() {
         QueryWrapper<CrutchDevice> wrapper = new QueryWrapper<>();
+        // 监护人只看自己绑定的设备；管理员 bound 为 null，不加限制
+        List<String> bound = dataScopeService.boundDeviceSns();
+        if (bound != null) {
+            if (bound.isEmpty()) {
+                return Result.success(Collections.emptyList());
+            }
+            wrapper.in("device_sn", bound);
+        }
         wrapper.orderByDesc("create_time");
         List<CrutchDevice> list = crutchDeviceMapper.selectList(wrapper);
         List<CrutchDeviceVO> voList = list.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
         applyOnlineStatus(voList);
+        if (bound != null) {
+            voList.forEach(this::maskPhones);
+        }
         return Result.success(voList);
+    }
+
+    /**
+     * 监护人视角脱敏联系电话。
+     * 家属只需要联系自己家老人，列表接口没必要回显完整号码。
+     */
+    private void maskPhones(CrutchDeviceVO vo) {
+        vo.setElderPhone(maskPhone(vo.getElderPhone()));
+        vo.setGuardianPhone(maskPhone(vo.getGuardianPhone()));
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) {
+            return phone;
+        }
+        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 
     @Override
     public Result<List<LatestDeviceLocationVO>> latestLocations() {
         List<LatestDeviceLocationVO> locations = crutchDeviceMapper.selectLatestLocations();
+        // 地图同样按绑定关系收窄：否则家属能看到全部设备的实时位置
+        List<String> bound = dataScopeService.boundDeviceSns();
+        if (bound != null) {
+            locations.removeIf(vo -> !bound.contains(vo.getDeviceSn()));
+        }
         LocalDateTime onlineAfter = LocalDateTime.now().minusSeconds(OFFLINE_THRESHOLD_SECONDS);
         for (LatestDeviceLocationVO vo : locations) {
             LocalDateTime lastReportTime = vo.getReportTime();
@@ -70,6 +106,7 @@ public class CrutchDeviceServiceImpl implements CrutchDeviceService {
         if (device == null) {
             return Result.error("设备不存在");
         }
+        dataScopeService.assertDeviceAccess(device.getDeviceSn());
         CrutchDeviceVO vo = convertToVO(device);
         applyOnlineStatus(Collections.singletonList(vo));
         return Result.success(vo);
@@ -83,6 +120,7 @@ public class CrutchDeviceServiceImpl implements CrutchDeviceService {
         if (device == null) {
             return Result.error("设备不存在");
         }
+        dataScopeService.assertDeviceAccess(device.getDeviceSn());
         CrutchDeviceVO vo = convertToVO(device);
         applyOnlineStatus(Collections.singletonList(vo));
         return Result.success(vo);
