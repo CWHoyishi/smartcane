@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { authApi } from '@/api'
@@ -65,11 +65,22 @@ const visibleMenus = computed(() => menus.filter(m => !m.adminOnly || isAdminUse
 
 const pageTitle = computed(() => (menus.find(m => m.path === route.path) || {}).title || '')
 
-onMounted(() => {
-  if (!isLoginPage.value) {
+// 登录成功是同一次页面加载内的路由切换，App 不会重新挂载（onMounted 只跑一次），
+// 所以监听「进入业务页」：先读本地缓存把菜单点亮，再异步回查角色
+watch(
+  isLoginPage,
+  onLoginPage => {
+    if (onLoginPage) {
+      return
+    }
+    const cached = getUser()
+    if (cached) {
+      currentUser.value = cached
+    }
     refreshUser()
-  }
-})
+  },
+  { immediate: true }
+)
 
 /** 刷新角色与姓名：本地缓存可能过期，权限调整后需要立刻反映到菜单 */
 async function refreshUser() {
