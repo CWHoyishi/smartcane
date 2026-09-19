@@ -8,10 +8,10 @@
           :y1="line.y"
           :x2="width - pad.right"
           :y2="line.y"
-          stroke="#ebeef5"
+          stroke="#e5e6eb"
           stroke-width="1"
         />
-        <text :x="pad.left - 6" :y="line.y + 4" text-anchor="end" font-size="11" fill="#909399">
+        <text :x="pad.left - 6" :y="line.y + 4" text-anchor="end" font-size="11" fill="#86909c">
           {{ line.label }}
         </text>
       </g>
@@ -44,7 +44,7 @@
         :y="height - 8"
         text-anchor="middle"
         font-size="11"
-        fill="#909399"
+        fill="#86909c"
       >
         {{ label.text }}
       </text>
@@ -61,7 +61,7 @@ import { computed } from 'vue'
 const props = defineProps({
   labels: { type: Array, default: () => [] },
   values: { type: Array, default: () => [] },
-  color: { type: String, default: '#409eff' },
+  color: { type: String, default: '#4e6ef2' },
   // line 折线 / bar 柱状
   type: { type: String, default: 'line' }
 })

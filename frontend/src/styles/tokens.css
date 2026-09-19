@@ -1,0 +1,40 @@
+/**
+ * 设计 token。
+ *
+ * 主色沿用小程序端 wechat-miniprogram/app.wxss 已有的 #4E6EF2（2026-09-19 确认），
+ * 两端同一套色板，避免出现两个品牌色。这里只放变量，不放具体组件样式。
+ */
+:root {
+  /* 品牌色 */
+  --sc-primary: #4e6ef2;
+  --sc-primary-hover: #3d5be0;
+  --sc-primary-light: #eef1fe;
+
+  /* 语义色 */
+  --sc-success: #36b37e;
+  --sc-warning: #ff7d00;
+  --sc-danger: #f53f3f;
+  --sc-muted: #86909c;
+
+  /* 中性色 */
+  --sc-text-1: #1d2129;
+  --sc-text-2: #4e5969;
+  --sc-text-3: #86909c;
+  --sc-border: #e5e6eb;
+  --sc-bg: #f2f3f5;
+  --sc-surface: #ffffff;
+  --sc-surface-alt: #fafbfc;
+
+  /* 圆角 / 阴影 / 间距 */
+  --sc-radius-card: 8px;
+  --sc-radius-btn: 6px;
+  --sc-radius-tag: 4px;
+  --sc-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --sc-gap: 16px;
+
+  /* 侧栏保持深色（2026-09-19 确认，不做深色模式） */
+  --sc-aside-bg: #2e3b4e;
+  --sc-aside-bg-hover: #38485f;
+  --sc-aside-bg-active: #223043;
+  --sc-aside-text: #bfcbd9;
+}

@@ -1,6 +1,7 @@
 <template>
   <div class="login-page">
     <el-card class="login-card">
+      <div class="login-logo">杖</div>
       <div class="login-title">智能拐杖系统</div>
       <div class="login-subtitle">账号密码登录</div>
       <el-form :model="form" :rules="rules" ref="formRef" @keyup.enter="handleLogin">
@@ -68,12 +69,26 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f0f2f5;
+  background-color: var(--sc-bg);
 }
 
 .login-card {
   width: 380px;
   padding: 12px 8px;
+}
+
+.login-logo {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 14px;
+  border-radius: 12px;
+  background: var(--sc-primary);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .login-title {

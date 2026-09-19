@@ -1,128 +1,115 @@
 <template>
-  <el-card>
-    <template #header>
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
-        <span>健康统计（{{ mode === 'daily' ? '日报' : '周报' }}）</span>
-        <div style="display: flex; align-items: center; gap: 12px">
-          <el-radio-group v-model="mode" @change="load">
-            <el-radio-button value="daily">日报</el-radio-button>
-            <el-radio-button value="weekly">周报</el-radio-button>
-          </el-radio-group>
-          <el-select
-            v-model="deviceSn"
-            placeholder="请选择设备"
-            style="width: 250px"
-            @change="load"
-          >
-            <el-option
-              v-for="item in deviceList"
-              :key="item.deviceSn"
-              :label="item.deviceSn + (item.elderName ? ' (' + item.elderName + ')' : '')"
-              :value="item.deviceSn"
-            />
-          </el-select>
-          <el-button :loading="loading" @click="load">刷新</el-button>
-          <el-button v-if="isAdminUser" type="primary" :loading="rebuilding" @click="rebuild">重算统计</el-button>
+  <div class="page">
+    <el-card>
+      <PageHeader :title="'健康统计（' + (mode === 'daily' ? '日报' : '周报') + '）'" :subtitle="'当前周期 ' + periodText">
+        <el-radio-group v-model="mode" @change="load">
+          <el-radio-button value="daily">日报</el-radio-button>
+          <el-radio-button value="weekly">周报</el-radio-button>
+        </el-radio-group>
+        <el-select v-model="deviceSn" placeholder="请选择设备" class="device-select" @change="load">
+          <el-option
+            v-for="item in deviceList"
+            :key="item.deviceSn"
+            :label="item.deviceSn + (item.elderName ? ' (' + item.elderName + ')' : '')"
+            :value="item.deviceSn"
+          />
+        </el-select>
+        <el-button :loading="loading" @click="load">刷新</el-button>
+        <el-button v-if="isAdminUser" type="primary" :loading="rebuilding" @click="rebuild">重算统计</el-button>
+      </PageHeader>
+
+      <!-- 口径说明收进 tooltip：这段文字常驻会把标题栏压得很长 -->
+      <div class="calc-note section">
+        <el-tooltip placement="top" raw-content :content="calcTip">
+          <span class="calc-note__label">统计口径 <el-icon><QuestionFilled /></el-icon></span>
+        </el-tooltip>
+      </div>
+
+      <div class="stat-grid section">
+        <StatCard
+          label="平均心率"
+          :value="current.avgHeartRate"
+          unit="次/分"
+          tone="danger"
+          hint="仅统计有效读数"
+        />
+        <StatCard
+          label="平均血氧"
+          :value="current.avgBloodOxygen"
+          unit="%"
+          tone="primary"
+          hint="仅统计有效读数"
+        />
+        <StatCard label="异常次数" :value="abnormalTotal" unit="次" tone="warning" hint="心率 / 血氧 / 摔倒合计" />
+        <StatCard label="在线时长" :value="current.activeMinutes" unit="分钟" tone="success" hint="相邻采样间隔 ≤5 分钟累计" />
+      </div>
+
+      <div class="chart-grid section">
+        <div class="chart-card">
+          <div class="card-title">平均心率趋势</div>
+          <TrendChart :labels="labels" :values="heartRates" color="#f53f3f" type="line" />
+        </div>
+        <div class="chart-card">
+          <div class="card-title">平均血氧趋势</div>
+          <TrendChart :labels="labels" :values="bloodOxygens" color="#4e6ef2" type="line" />
+        </div>
+        <div class="chart-card">
+          <div class="card-title">异常次数趋势</div>
+          <TrendChart :labels="labels" :values="abnormalCounts" color="#ff7d00" type="bar" />
+        </div>
+        <div class="chart-card">
+          <div class="card-title">在线时长趋势（分钟）</div>
+          <TrendChart :labels="labels" :values="activeMinutes" color="#36b37e" type="bar" />
         </div>
       </div>
-    </template>
 
-    <div style="color: #909399; font-size: 13px; margin-bottom: 16px">
-      统计口径：平均心率/血氧取有效读数（0 视为未佩戴不计入），异常次数统计心率 &lt;50 或 &gt;120、血氧 &lt;90、摔倒；在线时长按相邻采样间隔 ≤5 分钟累计（起算门槛与设备离线判定一致）。
-      数据由服务端定时预聚合（每 10 分钟重算今天与昨天），当前周期：{{ periodText }}
-    </div>
+      <el-table
+        v-if="mode === 'daily'"
+        v-loading="loading"
+        :data="rows"
+        stripe
+        size="small"
+        class="section"
+      >
+        <el-table-column prop="statDate" label="日期" width="120" />
+        <el-table-column prop="sampleCount" label="采样条数" width="100" />
+        <el-table-column label="平均心率" width="110">
+          <template #default="{ row }">{{ row.avgHeartRate ?? '--' }}</template>
+        </el-table-column>
+        <el-table-column label="平均血氧" width="110">
+          <template #default="{ row }">{{ row.avgBloodOxygen ?? '--' }}</template>
+        </el-table-column>
+        <el-table-column prop="fallCount" label="摔倒" width="90" />
+        <el-table-column prop="heartRateAbnormalCount" label="心率异常" width="110" />
+        <el-table-column prop="bloodOxygenAbnormalCount" label="血氧异常" width="110" />
+        <el-table-column prop="activeMinutes" label="在线时长(分钟)" />
+        <template #empty>
+          <EmptyState text="当前区间暂无统计" hint="可在管理员账号下点「重算统计」回填最近 7 天" />
+        </template>
+      </el-table>
 
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px">
-      <el-card shadow="hover">
-        <div style="text-align: center">
-          <div style="font-size: 14px; color: #606266; margin-bottom: 8px">平均心率</div>
-          <div style="font-size: 32px; font-weight: bold; color: #f56c6c">
-            {{ current.avgHeartRate ?? '--' }}
-            <span style="font-size: 14px; font-weight: normal">次/分</span>
-          </div>
-        </div>
-      </el-card>
-      <el-card shadow="hover">
-        <div style="text-align: center">
-          <div style="font-size: 14px; color: #606266; margin-bottom: 8px">平均血氧</div>
-          <div style="font-size: 32px; font-weight: bold; color: #409eff">
-            {{ current.avgBloodOxygen ?? '--' }}
-            <span style="font-size: 14px; font-weight: normal">%</span>
-          </div>
-        </div>
-      </el-card>
-      <el-card shadow="hover">
-        <div style="text-align: center">
-          <div style="font-size: 14px; color: #606266; margin-bottom: 8px">异常次数</div>
-          <div style="font-size: 32px; font-weight: bold; color: #e6a23c">
-            {{ abnormalTotal }}
-            <span style="font-size: 14px; font-weight: normal">次</span>
-          </div>
-        </div>
-      </el-card>
-      <el-card shadow="hover">
-        <div style="text-align: center">
-          <div style="font-size: 14px; color: #606266; margin-bottom: 8px">在线时长</div>
-          <div style="font-size: 32px; font-weight: bold; color: #67c23a">
-            {{ current.activeMinutes ?? '--' }}
-            <span style="font-size: 14px; font-weight: normal">分钟</span>
-          </div>
-        </div>
-      </el-card>
-    </div>
-
-    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px">
-      <el-card shadow="never">
-        <div style="font-size: 14px; color: #606266; margin-bottom: 8px">平均心率趋势</div>
-        <TrendChart :labels="labels" :values="heartRates" color="#f56c6c" type="line" />
-      </el-card>
-      <el-card shadow="never">
-        <div style="font-size: 14px; color: #606266; margin-bottom: 8px">平均血氧趋势</div>
-        <TrendChart :labels="labels" :values="bloodOxygens" color="#409eff" type="line" />
-      </el-card>
-      <el-card shadow="never">
-        <div style="font-size: 14px; color: #606266; margin-bottom: 8px">异常次数趋势</div>
-        <TrendChart :labels="labels" :values="abnormalCounts" color="#e6a23c" type="bar" />
-      </el-card>
-      <el-card shadow="never">
-        <div style="font-size: 14px; color: #606266; margin-bottom: 8px">在线时长趋势（分钟）</div>
-        <TrendChart :labels="labels" :values="activeMinutes" color="#67c23a" type="bar" />
-      </el-card>
-    </div>
-
-    <el-table v-if="mode === 'daily'" :data="rows" border size="small" style="margin-top: 16px">
-      <el-table-column prop="statDate" label="日期" width="120" />
-      <el-table-column prop="sampleCount" label="采样条数" width="100" />
-      <el-table-column label="平均心率" width="110">
-        <template #default="{ row }">{{ row.avgHeartRate ?? '--' }}</template>
-      </el-table-column>
-      <el-table-column label="平均血氧" width="110">
-        <template #default="{ row }">{{ row.avgBloodOxygen ?? '--' }}</template>
-      </el-table-column>
-      <el-table-column prop="fallCount" label="摔倒" width="90" />
-      <el-table-column prop="heartRateAbnormalCount" label="心率异常" width="110" />
-      <el-table-column prop="bloodOxygenAbnormalCount" label="血氧异常" width="110" />
-      <el-table-column prop="activeMinutes" label="在线时长(分钟)" />
-    </el-table>
-
-    <el-table v-else :data="rows" border size="small" style="margin-top: 16px">
-      <el-table-column label="周区间" width="200">
-        <template #default="{ row }">{{ row.weekStart }} ~ {{ row.weekEnd }}</template>
-      </el-table-column>
-      <el-table-column prop="statDays" label="统计天数" width="100" />
-      <el-table-column prop="sampleCount" label="采样条数" width="100" />
-      <el-table-column label="平均心率" width="110">
-        <template #default="{ row }">{{ row.avgHeartRate ?? '--' }}</template>
-      </el-table-column>
-      <el-table-column label="平均血氧" width="110">
-        <template #default="{ row }">{{ row.avgBloodOxygen ?? '--' }}</template>
-      </el-table-column>
-      <el-table-column prop="fallCount" label="摔倒" width="90" />
-      <el-table-column prop="heartRateAbnormalCount" label="心率异常" width="110" />
-      <el-table-column prop="bloodOxygenAbnormalCount" label="血氧异常" width="110" />
-      <el-table-column prop="activeMinutes" label="在线时长(分钟)" />
-    </el-table>
-  </el-card>
+      <el-table v-else v-loading="loading" :data="rows" stripe size="small" class="section">
+        <el-table-column label="周区间" width="200">
+          <template #default="{ row }"><span class="mono">{{ row.weekStart }} ~ {{ row.weekEnd }}</span></template>
+        </el-table-column>
+        <el-table-column prop="statDays" label="统计天数" width="100" />
+        <el-table-column prop="sampleCount" label="采样条数" width="100" />
+        <el-table-column label="平均心率" width="110">
+          <template #default="{ row }">{{ row.avgHeartRate ?? '--' }}</template>
+        </el-table-column>
+        <el-table-column label="平均血氧" width="110">
+          <template #default="{ row }">{{ row.avgBloodOxygen ?? '--' }}</template>
+        </el-table-column>
+        <el-table-column prop="fallCount" label="摔倒" width="90" />
+        <el-table-column prop="heartRateAbnormalCount" label="心率异常" width="110" />
+        <el-table-column prop="bloodOxygenAbnormalCount" label="血氧异常" width="110" />
+        <el-table-column prop="activeMinutes" label="在线时长(分钟)" />
+        <template #empty>
+          <EmptyState text="当前区间暂无统计" hint="可在管理员账号下点「重算统计」回填最近 7 天" />
+        </template>
+      </el-table>
+    </el-card>
+  </div>
 </template>
 
 <script setup>
@@ -130,11 +117,21 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { deviceApi, healthStatApi } from '@/api'
 import { getUser } from '@/utils/auth'
+import PageHeader from '@/components/PageHeader.vue'
+import StatCard from '@/components/StatCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import TrendChart from '@/components/TrendChart.vue'
 
 /** 趋势图默认窗口：日报最近 7 天、周报最近 4 周 */
 const DAILY_DAYS = 7
 const WEEKLY_WEEKS = 4
+
+const CALC_TIP = [
+  '平均心率 / 血氧只统计有效读数（0 视为未佩戴，不计入）',
+  '异常次数 = 心率 &lt;50 或 &gt;120 + 血氧 &lt;90 + 摔倒',
+  '在线时长按相邻采样间隔 ≤5 分钟累计（与设备离线判定同一口径）',
+  '数据由服务端每 10 分钟预聚合，管理员可手动重算'
+].join('<br>')
 
 const mode = ref('daily')
 const deviceSn = ref('')
@@ -145,6 +142,8 @@ const rebuilding = ref(false)
 
 // 重算是管理员专属操作，监护人看不到入口
 const isAdminUser = computed(() => (getUser() || {}).role === 'ADMIN')
+
+const calcTip = CALC_TIP
 
 /** 概览卡片取区间内最后一个统计周期（日报=今天，周报=本周） */
 const current = computed(() => rows.value[rows.value.length - 1] || {})
@@ -224,3 +223,40 @@ onMounted(async () => {
   await load()
 })
 </script>
+
+<style scoped>
+.device-select {
+  width: 240px;
+}
+
+.calc-note {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--sc-text-3);
+}
+
+.calc-note__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+  border-bottom: 1px dashed var(--sc-border);
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--sc-gap);
+}
+
+.chart-card {
+  padding: 14px 16px;
+  border: 1px solid var(--sc-border);
+  border-radius: var(--sc-radius-card);
+  background: var(--sc-surface);
+}
+
+.chart-card .card-title {
+  margin-bottom: 8px;
+}
+</style>

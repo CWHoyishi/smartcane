@@ -1,17 +1,13 @@
 <template>
-  <el-card>
-    <template #header>
-      <div style="display: flex; align-items: center; justify-content: space-between">
-        <span>实时位置地图</span>
-        <div style="display: flex; align-items: center; gap: 12px">
-          <span style="margin-right: 12px; color: #409eff; font-size: 13px">{{ positionSummary }}</span>
-          <span style="color: #909399; font-size: 13px">每 10 秒自动刷新，后端数据源约 60 秒拉取一次</span>
-          <el-button type="primary" size="small" @click="loadLocations">立即刷新</el-button>
-        </div>
-      </div>
-    </template>
-    <div ref="mapContainer" class="map-container"></div>
-  </el-card>
+  <div class="page">
+    <el-card>
+      <PageHeader title="实时位置地图" subtitle="每 10 秒自动刷新，后端数据源约 60 秒拉取一次">
+        <StatusTag :text="positionSummary" tone="primary" />
+        <el-button type="primary" :loading="loading" @click="loadLocations">立即刷新</el-button>
+      </PageHeader>
+      <div ref="mapContainer" class="map-container section"></div>
+    </el-card>
+  </div>
 </template>
 
 <script setup>
@@ -19,12 +15,20 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { deviceApi } from '@/api'
+import PageHeader from '@/components/PageHeader.vue'
+import StatusTag from '@/components/StatusTag.vue'
 
 const DEFAULT_CENTER = [31.2304, 121.4737]
 const REFRESH_INTERVAL_MS = 10 * 1000
 
+// 与 tokens.css 保持同值：Leaflet 的标记只能收具体色值，收不到 CSS 变量
+const COLOR_FALL = '#f53f3f'
+const COLOR_ONLINE = '#4e6ef2'
+const COLOR_OFFLINE = '#86909c'
+
 const mapContainer = ref(null)
 const positionSummary = ref('加载中...')
+const loading = ref(false)
 let map = null
 let markerLayer = null
 let timer = null
@@ -47,22 +51,23 @@ const statusText = (item) => {
 
 const markerColor = (item) => {
   if (item.fallStatus === 1) {
-    return '#f56c6c'
+    return COLOR_FALL
   }
-  return item.deviceStatus === 1 ? '#409eff' : '#909399'
+  return item.deviceStatus === 1 ? COLOR_ONLINE : COLOR_OFFLINE
 }
 
 const popupHtml = (item) => {
   const heartRate = item.heartRate == null ? '--' : item.heartRate
   const bloodOxygen = item.bloodOxygen == null ? '--' : item.bloodOxygen
-  return '<div style="min-width: 200px">' +
-    '<div style="font-weight: 600; margin-bottom: 6px">' + (item.elderName || '未绑定老人') + '</div>' +
-    '<div>设备：' + item.deviceSn + '</div>' +
-    '<div>状态：' + statusText(item) + '</div>' +
+  const statusColor = markerColor(item)
+  return '<div style="min-width:200px;font-size:13px;line-height:1.7">' +
+    '<div style="font-weight:600;font-size:14px;margin-bottom:4px">' + (item.elderName || '未绑定老人') + '</div>' +
+    '<div style="color:#86909c">设备 ' + item.deviceSn + '</div>' +
+    '<div>状态：<span style="color:' + statusColor + ';font-weight:600">' + statusText(item) + '</span></div>' +
     '<div>心率：' + heartRate + ' 次/分</div>' +
     '<div>血氧：' + bloodOxygen + '%</div>' +
-    '<div>上报：' + (item.reportTime || '--') + '</div>' +
-  '</div>'
+    '<div style="color:#86909c">上报：' + (item.reportTime || '--') + '</div>' +
+    '</div>'
 }
 
 const renderLocations = (items) => {
@@ -91,6 +96,7 @@ const renderLocations = (items) => {
 }
 
 const loadLocations = async () => {
+  loading.value = true
   try {
     const res = await deviceApi.latestLocations()
     if (res.data && Array.isArray(res.data)) {
@@ -98,6 +104,8 @@ const loadLocations = async () => {
     }
   } catch (err) {
     console.warn('[Map] 获取最新位置失败', err)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -130,8 +138,20 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .map-container {
-  height: calc(100vh - 190px);
+  height: calc(100vh - 230px);
   min-height: 480px;
-  border-radius: 6px;
+  border: 1px solid var(--sc-border);
+  border-radius: var(--sc-radius-card);
+  /* Leaflet 的图层会溢出圆角，必须裁掉 */
+  overflow: hidden;
+}
+
+/* 弹出气泡内的默认字号偏小，压制一下 Leaflet 的默认样式 */
+.map-container :deep(.leaflet-popup-content) {
+  margin: 12px 14px;
+}
+
+.map-container :deep(.leaflet-popup-content-wrapper) {
+  border-radius: var(--sc-radius-card);
 }
 </style>

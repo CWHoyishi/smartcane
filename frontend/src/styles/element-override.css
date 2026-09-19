@@ -1,0 +1,75 @@
+/**
+ * Element Plus 主题对齐。
+ *
+ * 只覆盖官方暴露的 CSS 变量和少量类名，不改组件源码：
+ * Element 升级时这些变量仍然有效，不会出现「改了库文件升级后丢失」的问题。
+ */
+:root {
+  --el-color-primary: var(--sc-primary);
+  --el-color-primary-light-3: #7b93fa;
+  --el-color-primary-light-5: #a4b4fc;
+  --el-color-primary-light-7: #cdd6fd;
+  --el-color-primary-light-8: #dfe5fe;
+  --el-color-primary-light-9: var(--sc-primary-light);
+  --el-color-primary-dark-2: var(--sc-primary-hover);
+
+  --el-color-success: var(--sc-success);
+  --el-color-warning: var(--sc-warning);
+  --el-color-danger: var(--sc-danger);
+  --el-color-error: var(--sc-danger);
+
+  --el-border-radius-base: var(--sc-radius-btn);
+  --el-text-color-primary: var(--sc-text-1);
+  --el-text-color-regular: var(--sc-text-2);
+  --el-text-color-secondary: var(--sc-text-3);
+  --el-border-color: var(--sc-border);
+  --el-border-color-light: var(--sc-border);
+  --el-border-color-lighter: var(--sc-border);
+  --el-fill-color-light: var(--sc-surface-alt);
+  --el-bg-color-page: var(--sc-bg);
+}
+
+.el-card {
+  border-radius: var(--sc-radius-card);
+  border-color: var(--sc-border);
+}
+
+.el-card__header {
+  padding: 14px 20px;
+  font-weight: 600;
+}
+
+.el-card__body {
+  padding: 20px;
+}
+
+/* 表头压深一档；表格默认全边框太密，改为靠斑马纹区分行（各页配 stripe） */
+.el-table th.el-table__cell {
+  background-color: var(--sc-surface-alt);
+  color: var(--sc-text-2);
+  font-weight: 600;
+}
+
+.el-table .el-table__cell {
+  padding: 10px 0;
+}
+
+.el-table__empty-block {
+  min-height: 120px;
+}
+
+.el-tag {
+  border-radius: var(--sc-radius-tag);
+}
+
+.el-dialog {
+  border-radius: var(--sc-radius-card);
+}
+
+.el-dialog__header {
+  font-weight: 600;
+}
+
+.el-pagination {
+  justify-content: flex-end;
+}

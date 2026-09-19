@@ -1,81 +1,92 @@
 <template>
-  <el-card>
-    <template #header>
-      <div style="display: flex; justify-content: space-between; align-items: center">
-        <span>告警处理</span>
-        <div style="display: flex; align-items: center; gap: 12px">
-          <el-radio-group v-model="query.status" @change="handleFilterChange">
-            <el-radio-button :value="null">全部</el-radio-button>
-            <el-radio-button :value="0">待处理</el-radio-button>
-            <el-radio-button :value="1">已确认</el-radio-button>
-            <el-radio-button :value="2">误报</el-radio-button>
-          </el-radio-group>
-          <el-button type="primary" @click="loadAlarms">刷新</el-button>
-        </div>
+  <div class="page">
+    <el-card>
+      <PageHeader title="告警处理" subtitle="摔倒告警的确认与误报标记，处置记录永久保留">
+        <el-radio-group v-model="query.status" @change="handleFilterChange">
+          <el-radio-button :value="null">全部</el-radio-button>
+          <el-radio-button :value="0">待处理</el-radio-button>
+          <el-radio-button :value="1">已确认</el-radio-button>
+          <el-radio-button :value="2">误报</el-radio-button>
+        </el-radio-group>
+        <el-button :loading="loading" @click="loadAlarms">刷新</el-button>
+      </PageHeader>
+
+      <div v-if="pendingCount > 0" class="alarm-banner section">
+        <span class="alarm-banner__dot"></span>
+        <span>有 <b>{{ pendingCount }}</b> 条待处理告警，请尽快联系老人或监护人确认。</span>
+        <span class="toolbar__spacer"></span>
+        <el-button link type="danger" @click="showPendingOnly">只看待处理</el-button>
       </div>
-    </template>
 
-    <el-alert
-      v-if="pendingCount > 0"
-      :title="`有 ${pendingCount} 条待处理告警，请尽快联系老人或监护人确认。`"
-      type="error"
-      :closable="false"
-      style="margin-bottom: 20px"
-    />
-
-    <el-table v-loading="loading" :data="rows" border style="width: 100%">
-      <el-table-column prop="reportTime" label="告警时间" width="180" />
-      <el-table-column prop="deviceSn" label="设备序列号" width="170" />
-      <el-table-column label="老人" width="110">
-        <template #default="{ row }">{{ elderName(row.deviceSn) }}</template>
-      </el-table-column>
-      <el-table-column label="类型" width="110">
-        <template #default="{ row }">
-          <el-tag :type="row.alarmType === 'FALL' ? 'danger' : 'warning'">
-            {{ alarmTypeText(row.alarmType) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="级别" width="90">
-        <template #default="{ row }">{{ levelText(row.level) }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="alarmValue" label="触发依据" width="140" />
-      <el-table-column label="处理情况" min-width="200">
-        <template #default="{ row }">
-          <template v-if="row.status === 0">--</template>
-          <template v-else>
-            {{ row.handleTime }}
-            <span v-if="row.handledBy"> · {{ row.handledBy }}</span>
-            <div v-if="row.handleNote" style="color: #909399">{{ row.handleNote }}</div>
+      <el-table
+        v-loading="loading"
+        :data="rows"
+        stripe
+        :row-class-name="rowClassName"
+        class="section"
+      >
+        <el-table-column label="告警时间" width="170">
+          <template #default="{ row }"><span class="mono">{{ row.reportTime }}</span></template>
+        </el-table-column>
+        <el-table-column label="设备序列号" width="170">
+          <template #default="{ row }"><span class="mono">{{ row.deviceSn }}</span></template>
+        </el-table-column>
+        <el-table-column label="老人" width="110">
+          <template #default="{ row }">{{ elderName(row.deviceSn) }}</template>
+        </el-table-column>
+        <el-table-column label="类型" width="110">
+          <template #default="{ row }">
+            <StatusTag
+              :status="row.alarmType === 'FALL' ? 'fall' : ''"
+              :text="alarmTypeText(row.alarmType)"
+              :tone="row.alarmType === 'FALL' ? 'danger' : 'warning'"
+            />
           </template>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="190" fixed="right">
-        <template #default="{ row }">
-          <template v-if="row.status === 0">
-            <el-button link type="primary" @click="openHandle(row, 1)">确认已处置</el-button>
-            <el-button link type="warning" @click="openHandle(row, 2)">标记误报</el-button>
+        </el-table-column>
+        <el-table-column label="级别" width="90">
+          <template #default="{ row }">{{ levelText(row.level) }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="120">
+          <template #default="{ row }">
+            <StatusTag :status="statusKey(row.status)" />
           </template>
-          <span v-else style="color: #909399">已处理</span>
+        </el-table-column>
+        <el-table-column prop="alarmValue" label="触发依据" width="140" />
+        <el-table-column label="处理情况" min-width="200">
+          <template #default="{ row }">
+            <span v-if="row.status === 0" class="text-muted">--</span>
+            <template v-else>
+              <span class="mono">{{ row.handleTime }}</span>
+              <span v-if="row.handledBy" class="text-muted"> · {{ row.handledBy }}</span>
+              <div v-if="row.handleNote" class="text-muted handle-note">{{ row.handleNote }}</div>
+            </template>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <template v-if="row.status === 0">
+              <el-button link type="primary" @click="openHandle(row, 1)">确认已处置</el-button>
+              <el-button link type="warning" @click="openHandle(row, 2)">标记误报</el-button>
+            </template>
+            <span v-else class="text-muted">已处理</span>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <EmptyState text="暂无告警记录" hint="设备判定摔倒时会自动生成告警" />
         </template>
-      </el-table-column>
-    </el-table>
+      </el-table>
 
-    <el-empty v-if="!loading && rows.length === 0" description="暂无告警记录" />
-
-    <el-pagination
-      style="margin-top: 20px; justify-content: flex-end; display: flex"
-      :current-page="query.pageNum"
-      :page-size="query.pageSize"
-      :total="total"
-      layout="total, prev, pager, next"
-      @current-change="handlePageChange"
-    />
+      <el-pagination
+        v-if="total > 0"
+        class="section"
+        background
+        layout="total, prev, pager, next"
+        :current-page="query.pageNum"
+        :page-size="query.pageSize"
+        :total="total"
+        @current-change="handlePageChange"
+      />
+    </el-card>
 
     <el-dialog
       v-model="handleVisible"
@@ -84,7 +95,7 @@
     >
       <el-form label-width="80px">
         <el-form-item label="告警">
-          <span>{{ currentRow ? `${currentRow.reportTime} ${currentRow.deviceSn}` : '' }}</span>
+          <span class="mono">{{ currentRow ? `${currentRow.reportTime} ${currentRow.deviceSn}` : '' }}</span>
         </el-form-item>
         <el-form-item label="处理人">
           <el-input v-model="handleForm.handledBy" placeholder="如：家属 张三" maxlength="32" />
@@ -105,17 +116,16 @@
         <el-button type="primary" :loading="submitting" @click="submitHandle">提交</el-button>
       </template>
     </el-dialog>
-  </el-card>
+  </div>
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { alarmApi, deviceApi } from '@/api'
-
-/** 状态与级别的展示映射：后端存的是数字，界面上不能直接给用户看数字 */
-const STATUS_TEXT = { 0: '待处理', 1: '已确认', 2: '误报' }
-const STATUS_TAG = { 0: 'danger', 1: 'success', 2: 'info' }
+import PageHeader from '@/components/PageHeader.vue'
+import StatusTag from '@/components/StatusTag.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -131,11 +141,15 @@ const handleVisible = ref(false)
 const currentRow = ref(null)
 const handleForm = reactive({ id: null, status: 1, handledBy: '', handleNote: '' })
 
-const statusText = (status) => STATUS_TEXT[status] ?? '未知'
-const statusTagType = (status) => STATUS_TAG[status] ?? 'info'
 const levelText = (level) => (level === 3 ? '紧急' : level === 2 ? '重要' : '--')
 const alarmTypeText = (type) => (type === 'FALL' ? '摔倒' : type || '未知')
 const elderName = (deviceSn) => elderNames.value[deviceSn] || '--'
+
+/** 数字状态 → StatusTag 的关键字，颜色与文案都由组件统一维护 */
+const statusKey = (status) => (status === 0 ? 'pending' : status === 1 ? 'confirmed' : 'falseAlarm')
+
+/** 待处理行左侧加红色色条：一屏几十行时比看标签更快定位 */
+const rowClassName = ({ row }) => (row.status === 0 ? 'row-pending' : '')
 
 const loadDevices = async () => {
   try {
@@ -178,6 +192,12 @@ const handleFilterChange = () => {
   loadAlarms()
 }
 
+const showPendingOnly = () => {
+  query.status = 0
+  query.pageNum = 1
+  loadAlarms()
+}
+
 const handlePageChange = (pageNum) => {
   query.pageNum = pageNum
   loadAlarms()
@@ -212,3 +232,34 @@ onMounted(() => {
   loadAlarms()
 })
 </script>
+
+<style scoped>
+.alarm-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #d92c2c;
+  background: #ffecec;
+  border: 1px solid #ffd6d6;
+  border-radius: var(--sc-radius-card);
+}
+
+.alarm-banner__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sc-danger);
+}
+
+.handle-note {
+  font-size: 12px;
+}
+
+/* 待处理行：只给首列加色条，避免整行铺色干扰文字对比度 */
+:deep(.el-table__row.row-pending > td:first-child) {
+  box-shadow: inset 3px 0 0 var(--sc-danger);
+}
+</style>
