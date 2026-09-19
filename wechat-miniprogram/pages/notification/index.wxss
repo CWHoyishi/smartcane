@@ -43,7 +43,6 @@
 }
 
 .empty-tip { text-align: center; padding: 120rpx 0; color: #86909C; font-size: 28rpx; }
-.loading-tip { text-align: center; padding: 120rpx 0; color: #4E6EF2; font-size: 28rpx; }
 .error-tip { text-align: center; padding: 80rpx 40rpx; color: #FF6B6B; font-size: 26rpx; background-color: rgba(255,107,107,0.05); border-radius: 12rpx; margin-top: 24rpx; }
 
 /* ====== 详情弹窗 ====== */

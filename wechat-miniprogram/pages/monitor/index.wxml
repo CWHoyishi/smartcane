@@ -19,12 +19,25 @@
     <text class="refresh-text">自动刷新中，{{countdown}}s 后更新</text>
   </view>
 
+  <!-- 首次加载显示骨架屏（纯 WXSS），避免空白页只留一行"加载中" -->
+  <block wx:if="{{loading && !sensorData.reportTime}}">
+    <view class="skeleton-card">
+      <view class="skeleton skeleton-line skeleton-line--short"></view>
+      <view class="skeleton skeleton-block"></view>
+    </view>
+    <view class="skeleton-card">
+      <view class="skeleton skeleton-line skeleton-line--short"></view>
+      <view class="skeleton skeleton-block"></view>
+    </view>
+  </block>
+
+  <block wx:else>
   <!-- 心率/血氧卡片 -->
   <view class="sensor-grid">
     <!-- 心率 -->
     <view class="sensor-card">
       <view class="card-header">
-        <text class="card-icon">♥</text>
+        <view class="card-icon card-icon--hr"><text>♥</text></view>
         <text class="card-title">心率</text>
       </view>
       <view class="value-row">
@@ -36,7 +49,7 @@
     <!-- 血氧 -->
     <view class="sensor-card">
       <view class="card-header">
-        <text class="card-icon">◎</text>
+        <view class="card-icon card-icon--spo2"><text>◎</text></view>
         <text class="card-title">血氧饱和度</text>
       </view>
       <view class="value-row">
@@ -50,8 +63,9 @@
   <view class="location-card">
     <view class="location-header">
       <text class="location-title">位置信息</text>
-      <view class="status-badge {{sensorData.lat != null && sensorData.lon != null ? 'status-normal' : 'status-alert'}}">
-        <text>{{sensorData.lat != null && sensorData.lon != null ? '● 在线' : '○ 暂无定位'}}</text>
+      <view class="tag {{sensorData.lat != null && sensorData.lon != null ? 'tag--success' : 'tag--warning'}}">
+        <view class="tag__dot"></view>
+        <text>{{sensorData.lat != null && sensorData.lon != null ? '有定位' : '暂无定位'}}</text>
       </view>
     </view>
     <!-- 有坐标时展示（lat=0也是有效值，使用!= null同时判断null和undefined） -->
@@ -101,4 +115,5 @@
   <view class="timestamp" wx:if="{{sensorData.reportTime}}">
     <text>最后上报时间：{{sensorData.reportTime}}</text>
   </view>
+  </block>
 </view>

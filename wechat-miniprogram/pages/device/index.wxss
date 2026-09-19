@@ -31,25 +31,12 @@
 .info-label { font-size: 22rpx; color: #86909C; margin-bottom: 8rpx; }
 .info-value { font-size: 28rpx; color: #1D2129; }
 
-/* 绑定按钮 */
-.bind-btn {
-  width: 100%; height: 96rpx;
-  background: linear-gradient(135deg, #4E6EF2, #7B93FA);
-  color: #FFFFFF; border-radius: 48rpx;
-  font-size: 34rpx; font-weight: 500;
-  display: flex; align-items: center; justify-content: center;
+/* 按钮本身用 app.wxss 的 .btn-primary / .btn-plain，这里只管间距 */
+.bind-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
   margin-top: 40rpx;
 }
-.bind-btn:active { opacity: 0.9; transform: scale(0.98); }
-
-.logout-btn {
-  width: 100%; height: 88rpx;
-  background: #FFFFFF; color: #4E5969;
-  border: 1rpx solid #E5E6EB; border-radius: 44rpx;
-  font-size: 30rpx;
-  display: flex; align-items: center; justify-content: center;
-  margin-top: 24rpx;
-}
-.logout-btn:active { opacity: 0.9; }
 
 .empty-tip { text-align: center; padding: 120rpx 0; color: #86909C; font-size: 28rpx; }

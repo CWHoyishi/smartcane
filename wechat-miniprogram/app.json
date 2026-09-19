@@ -13,11 +13,36 @@
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/monitor/index", "text": "实时监测" },
-      { "pagePath": "pages/history/index", "text": "历史数据" },
-      { "pagePath": "pages/health/index", "text": "健康统计" },
-      { "pagePath": "pages/notification/index", "text": "告警处理" },
-      { "pagePath": "pages/device/index", "text": "设备管理" }
+      {
+        "pagePath": "pages/monitor/index",
+        "text": "实时监测",
+        "iconPath": "images/monitor.png",
+        "selectedIconPath": "images/monitor-active.png"
+      },
+      {
+        "pagePath": "pages/history/index",
+        "text": "历史数据",
+        "iconPath": "images/history.png",
+        "selectedIconPath": "images/history-active.png"
+      },
+      {
+        "pagePath": "pages/health/index",
+        "text": "健康统计",
+        "iconPath": "images/health.png",
+        "selectedIconPath": "images/health-active.png"
+      },
+      {
+        "pagePath": "pages/notification/index",
+        "text": "告警处理",
+        "iconPath": "images/notification.png",
+        "selectedIconPath": "images/notification-active.png"
+      },
+      {
+        "pagePath": "pages/device/index",
+        "text": "设备管理",
+        "iconPath": "images/device.png",
+        "selectedIconPath": "images/device-active.png"
+      }
     ]
   },
   "window": {

@@ -51,13 +51,14 @@
     <text>暂无绑定设备</text>
   </view>
 
-  <!-- 绑定新设备按钮 -->
-  <view class="bind-btn" bindtap="onBindDevice">
-    <text>+ 绑定新设备</text>
-  </view>
-
-  <!-- 退出登录 -->
-  <view class="logout-btn" bindtap="onLogout">
-    <text>退出登录</text>
+  <view class="bind-actions">
+    <!-- 绑定新设备按钮 -->
+    <view class="btn-primary" bindtap="onBindDevice">
+      <text>+ 绑定新设备</text>
+    </view>
+    <!-- 退出登录 -->
+    <view class="btn-plain" bindtap="onLogout">
+      <text>退出登录</text>
+    </view>
   </view>
 </view>

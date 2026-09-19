@@ -1,4 +1,9 @@
-/* 全局样式 - 智能拐杖监护人端 */
+/* 全局样式 - 智能拐杖监护人端
+ *
+ * 色板与 Web 端 frontend/src/styles/tokens.css 保持一致（主色 #4E6EF2）。
+ * 各页 wxss 只写页面特有布局，通用卡片/按钮/标签/指标卡/骨架屏都放在这里，
+ * 避免每页各写一份、改一处漏一处。
+ */
 page {
   background-color: #F5F7FA;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -7,23 +12,46 @@ page {
   line-height: 1.5;
 }
 
-/* 主题色变量通过class使用 */
+/* ===== 文本 ===== */
 .text-primary { color: #4E6EF2; }
 .text-success { color: #36B37E; }
 .text-warning { color: #FF7D00; }
 .text-error { color: #FF6B6B; }
 .text-muted { color: #86909C; }
 
-/* 卡片通用样式 */
+/* 设备号、坐标、时间这类需要纵向对齐的文本 */
+.mono { font-family: Menlo, Consolas, monospace; }
+
+/* ===== 卡片 ===== */
 .card {
   background-color: #FFFFFF;
   border-radius: 16rpx;
   padding: 32rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
   margin-bottom: 24rpx;
 }
 
-/* 按钮通用样式 */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.card-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1D2129;
+}
+
+.section-title {
+  display: block;
+  margin: 8rpx 0 16rpx;
+  font-size: 26rpx;
+  color: #86909C;
+}
+
+/* ===== 按钮 ===== */
 .btn-primary {
   background: linear-gradient(135deg, #4E6EF2 0%, #7B93FA 100%);
   color: #FFFFFF;
@@ -39,4 +67,163 @@ page {
 .btn-primary:active {
   opacity: 0.9;
   transform: scale(0.98);
+}
+
+.btn-plain {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid #E5E6EB;
+  border-radius: 44rpx;
+  background-color: #FFFFFF;
+  color: #4E5969;
+  font-size: 30rpx;
+}
+
+.btn-plain:active {
+  opacity: 0.9;
+}
+
+/* ===== 状态标签（胶囊） ===== */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  line-height: 40rpx;
+  background-color: #F2F3F5;
+  color: #4E5969;
+}
+
+.tag__dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.tag--primary { background-color: #EEF1FE; color: #4E6EF2; }
+.tag--success { background-color: #E8F8F1; color: #1F8F61; }
+.tag--warning { background-color: #FFF3E6; color: #D96500; }
+.tag--danger { background-color: #FFECEC; color: #D92C2C; }
+.tag--muted { background-color: #F2F3F5; color: #86909C; }
+
+/* ===== 指标卡 ===== */
+.stat-grid {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.stat-card {
+  flex: 1;
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: #86909C;
+}
+
+.stat-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6rpx;
+  margin-top: 8rpx;
+}
+
+.stat-num {
+  font-size: 52rpx;
+  font-weight: 600;
+  line-height: 1.1;
+  color: #1D2129;
+}
+
+.stat-unit {
+  font-size: 24rpx;
+  color: #86909C;
+}
+
+.stat-hint {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #86909C;
+}
+
+.stat-card--primary .stat-num { color: #4E6EF2; }
+.stat-card--success .stat-num { color: #36B37E; }
+.stat-card--warning .stat-num { color: #FF7D00; }
+.stat-card--danger .stat-num { color: #F53F3F; }
+
+/* ===== 告警横幅 ===== */
+.alarm-banner {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 24rpx;
+  border-radius: 16rpx;
+  background-color: #FFECEC;
+  border: 1rpx solid #FFD6D6;
+  color: #D92C2C;
+  font-size: 26rpx;
+}
+
+.alarm-banner__dot {
+  flex: none;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background-color: #F53F3F;
+}
+
+/* ===== 空状态 ===== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  padding: 100rpx 0;
+  font-size: 26rpx;
+  color: #86909C;
+}
+
+/* ===== 骨架屏（纯 WXSS，不引第三方库） ===== */
+.skeleton {
+  background: linear-gradient(90deg, #EEF0F3 25%, #F7F8FA 37%, #EEF0F3 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: 8rpx;
+}
+
+.skeleton-card {
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.skeleton-line {
+  height: 28rpx;
+  margin-bottom: 16rpx;
+}
+
+.skeleton-line--short {
+  width: 40%;
+}
+
+.skeleton-block {
+  height: 120rpx;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }

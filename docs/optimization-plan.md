@@ -281,6 +281,27 @@
 
 **演示账号**（内网演示用，正式部署必须改口令）：`admin / admin123`（管理员）、`guardian / guardian123`（监护人，已绑定设备 `862323084243065`）。
 
+### 迭代 11：界面统一（Web + 小程序，已完成）
+
+起因：Web 端 7 个页面里有 5 个 `<style>` 块为空、颜色全是 Element 默认值（`#409eff`/`#f56c6c`/`#67c23a`），与小程序已有的品牌蓝 `#4E6EF2` 是两套色；小程序各页又各自重写卡片/按钮样式，改一处漏一处。
+
+**决策**（2026-09-19 确认）：侧栏保持深色、不做深色模式、主色沿用小程序现有的 `#4E6EF2`。
+
+**Web**：
+- 新增 `frontend/src/styles/tokens.css`（色板/圆角/间距/阴影变量）、`element-override.css`（只覆盖 Element 暴露的 CSS 变量与少量类名，不动组件源码，升级不冲突）、`index.css`（reset + `.page`/`.toolbar`/`.stat-grid`/`.mono` 等通用类），在 `main.js` 里按 Element → token → 覆盖 → 全局 的顺序引入。
+- 新增 4 个通用组件：`PageHeader`（页头+操作区）、`StatCard`（指标卡）、`StatusTag`（状态标签）、`EmptyState`（空态）；7 个页面全部改用它们，内联样式清零（仅 MapView 的 Leaflet 弹窗保留行内写法，属第三方要求）。
+- `App.vue` 重做外壳：品牌区 + 分组菜单（监控/健康/告警/系统）+ 侧栏底部用户卡；视口 <1200px 侧栏收成图标栏，<768px 改用顶栏下拉导航。
+- 表格统一去掉全边框改斑马纹，`#empty` 插槽接入统一空态；异常读数（心率 <50 或 >120、血氧 <90）标红，与健康统计口径一致。
+- 补 favicon（`frontend/public/favicon.svg`）与 `theme-color`；`TrendChart` 配色接 token。
+
+**小程序**：
+- `app.wxss` 收敛为共享样式表：语义色、`.card`、`.btn-primary`/`.btn-plain`、`.tag`、`.stat-*`、`.alarm-banner`、`.empty-state`、`.skeleton*`。
+- tabBar 补图标：`wechat-miniprogram/images/` 下 10 张 81×81 PNG（5 个页面 × 普通/选中），由一次性 Java 脚本（JDK ImageIO 绘制，脚本未入库）生成，不引图标库。
+- 首次加载从「一行文字」改为骨架屏（monitor / history / health / notification），纯 WXSS 实现，不引第三方库。
+- monitor 位置状态改用统一标签、心率/血氧图标加浅底圆形；device 页按钮复用全局类，删掉页面内重复定义。
+
+**有意未做**：深色模式、图标字体库、第三方图表库。
+
 ## 6. 数据库现状与约束（依据现有建表 SQL）
 
 - `t_crutch_sensor_data` 已有索引：`idx_dev_report (device_sn, report_time)`、`idx_fall_status (fall_status)`。
@@ -311,3 +332,4 @@
 | 登录态传输 | 已知风险 | 内网演示未启用 HTTPS，密码与 token 明文传输；正式部署必须上 HTTPS |
 | 设备上报接口 | 已知风险 | `/api/sensor/report` 在鉴权白名单中（设备没有登录能力），演示环境未下发设备密钥；公网部署前需补设备级鉴权 |
 | 鉴权运行验证 | 待执行 | 沙箱无法启动 Tomcat；需在 IDE 启动后端后验证：登录成功、监护人越权访问他人设备返回 403、登出后原 token 立即失效 |
+| 界面走查 | 待执行 | 迭代 11 为纯样式改动（前端 `npm run build` 通过、小程序 JS 语法与 WXML 标签配对已校验）；两种角色下的菜单可见性、窄屏折叠、地图弹窗、骨架屏需在浏览器与开发者工具里人工过一遍 |

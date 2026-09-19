@@ -9,7 +9,16 @@
     <text class="range-text">{{rangeText}}</text>
   </view>
 
-  <view class="loading-tip" wx:if="{{loading}}"><text>正在加载统计数据...</text></view>
+  <!-- 首次加载：骨架卡片（纯 WXSS） -->
+  <block wx:if="{{loading}}">
+    <view class="stat-grid">
+      <view class="skeleton skeleton-block" wx:for="{{[1, 2]}}" wx:key="*this"></view>
+    </view>
+    <view class="skeleton-card">
+      <view class="skeleton skeleton-line skeleton-line--short"></view>
+      <view class="skeleton skeleton-block"></view>
+    </view>
+  </block>
   <view class="error-tip" wx:if="{{errorMsg && !loading}}"><text>{{errorMsg}}</text></view>
 
   <block wx:if="{{!loading && !errorMsg}}">

@@ -11,10 +11,13 @@
     </picker>
   </view>
 
-  <!-- 加载中 -->
-  <view class="loading-tip" wx:if="{{loading}}">
-    <text>正在加载历史数据...</text>
-  </view>
+  <!-- 首次加载：骨架列表（纯 WXSS） -->
+  <block wx:if="{{loading}}">
+    <view class="skeleton-card" wx:for="{{[1, 2, 3]}}" wx:key="*this">
+      <view class="skeleton skeleton-line skeleton-line--short"></view>
+      <view class="skeleton skeleton-line"></view>
+    </view>
+  </block>
 
   <!-- 错误提示 -->
   <view class="error-tip" wx:if="{{errorMsg && !loading}}">
